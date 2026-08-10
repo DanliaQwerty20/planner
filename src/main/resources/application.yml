@@ -4,7 +4,7 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/planner}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/planner}
     username: ${DATABASE_USERNAME:planner}
     password: ${DATABASE_PASSWORD:planner-local-password}
     hikari:

@@ -23,6 +23,8 @@ Telegram-first ассистент, который превращает голо�
    docker compose up -d postgres
    ```
 
+   PostgreSQL проекта доступен с хоста на `localhost:5433`; порт `5432` оставлен свободным для локально установленного PostgreSQL.
+
 2. Запустить приложение:
 
    ```powershell
