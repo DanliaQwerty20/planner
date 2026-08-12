@@ -4,6 +4,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 import by.korchagin.planner.reminder.dto.ReminderConfirmation;
+import by.korchagin.planner.reminder.dto.ReminderClarification;
 import by.korchagin.planner.reminder.dto.ReminderInterpretation;
 import by.korchagin.planner.reminder.service.ReminderDraftService;
 import by.korchagin.planner.reminder.service.ReminderTextInterpreter;
@@ -68,7 +69,13 @@ public class TelegramUpdateService {
 	}
 
 	private void createDraftPreview(long telegramUserId, long chatId, String text) {
-		var interpretation = reminderTextInterpreter.interpret(text);
+		var result = reminderTextInterpreter.interpret(text);
+		if (result instanceof ReminderClarification clarification) {
+			telegramClient.sendMessage(chatId, clarification.question());
+			return;
+		}
+
+		var interpretation = (ReminderInterpretation) result;
 		var draft = reminderDraftService.create(telegramUserId, interpretation);
 		telegramClient.sendConfirmation(
 				chatId,

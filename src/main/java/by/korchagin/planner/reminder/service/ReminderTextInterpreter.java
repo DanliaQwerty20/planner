@@ -1,8 +1,8 @@
 package by.korchagin.planner.reminder.service;
 
-import by.korchagin.planner.reminder.dto.ReminderInterpretation;
+import by.korchagin.planner.reminder.dto.ReminderInterpretationResult;
 
 public interface ReminderTextInterpreter {
 
-	ReminderInterpretation interpret(String text);
+	ReminderInterpretationResult interpret(String text);
 }

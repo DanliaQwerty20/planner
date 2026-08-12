@@ -6,5 +6,5 @@ import java.time.ZoneId;
 public record ReminderInterpretation(
 		String text,
 		Instant remindAt,
-		ZoneId timeZone) {
+		ZoneId timeZone) implements ReminderInterpretationResult {
 }
