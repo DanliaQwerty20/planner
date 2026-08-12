@@ -1,4 +1,4 @@
-package by.korchagin.planner.reminder.delivery;
+package by.korchagin.planner.reminder.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -8,11 +8,9 @@ import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 
 import by.korchagin.planner.TestcontainersConfiguration;
-import by.korchagin.planner.reminder.delivery.entity.ReminderDeliveryStatus;
-import by.korchagin.planner.reminder.delivery.repository.ReminderDeliveryRepository;
-import by.korchagin.planner.reminder.delivery.service.ReminderDeliveryService;
+import by.korchagin.planner.reminder.entity.ReminderDeliveryStatus;
+import by.korchagin.planner.reminder.repository.ReminderDeliveryRepository;
 import by.korchagin.planner.reminder.repository.ReminderRepository;
-import by.korchagin.planner.reminder.service.ReminderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

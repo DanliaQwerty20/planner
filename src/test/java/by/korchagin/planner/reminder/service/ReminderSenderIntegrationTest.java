@@ -1,4 +1,4 @@
-package by.korchagin.planner.reminder.delivery;
+package by.korchagin.planner.reminder.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,13 +12,10 @@ import java.time.Instant;
 import java.util.UUID;
 
 import by.korchagin.planner.TestcontainersConfiguration;
-import by.korchagin.planner.reminder.delivery.entity.ReminderDeliveryStatus;
-import by.korchagin.planner.reminder.delivery.gateway.ReminderMessageSender;
-import by.korchagin.planner.reminder.delivery.repository.ReminderDeliveryRepository;
-import by.korchagin.planner.reminder.delivery.service.ReminderDeliveryService;
-import by.korchagin.planner.reminder.delivery.service.ReminderDeliverySenderService;
+import by.korchagin.planner.reminder.entity.ReminderDeliveryStatus;
+import by.korchagin.planner.reminder.repository.ReminderDeliveryRepository;
 import by.korchagin.planner.reminder.repository.ReminderRepository;
-import by.korchagin.planner.reminder.service.ReminderService;
+import by.korchagin.planner.telegram.client.TelegramClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +35,7 @@ class ReminderSenderIntegrationTest {
 	private Clock clock;
 
 	@MockitoBean
-	private ReminderMessageSender reminderMessageSender;
+	private TelegramClient telegramClient;
 
 	@Autowired
 	private ReminderService reminderService;
@@ -70,20 +67,20 @@ class ReminderSenderIntegrationTest {
 		var delivery = reminderDeliveryRepository.findById(reminderId).orElseThrow();
 
 		assertThat(sent).isTrue();
-		verify(reminderMessageSender).send(TELEGRAM_USER_ID, "Покормить кота");
+		verify(telegramClient).sendMessage(TELEGRAM_USER_ID, "Покормить кота");
 		assertThat(delivery.getStatus()).isEqualTo(ReminderDeliveryStatus.SENT);
 		assertThat(delivery.getSentAt()).isEqualTo(PROCESSING_TIME);
 
 		assertThat(reminderDeliverySenderService.sendNextPendingDelivery()).isFalse();
-		verifyNoMoreInteractions(reminderMessageSender);
+		verifyNoMoreInteractions(telegramClient);
 	}
 
 	@Test
 	void sendNextPendingDelivery_whenTelegramFails_shouldKeepDeliveryPendingForRetry() {
 		var reminderId = createPendingDelivery();
 		doThrow(new RuntimeException("Telegram unavailable"))
-				.when(reminderMessageSender)
-				.send(TELEGRAM_USER_ID, "Покормить кота");
+				.when(telegramClient)
+				.sendMessage(TELEGRAM_USER_ID, "Покормить кота");
 
 		assertThatThrownBy(reminderDeliverySenderService::sendNextPendingDelivery)
 				.isInstanceOf(RuntimeException.class)

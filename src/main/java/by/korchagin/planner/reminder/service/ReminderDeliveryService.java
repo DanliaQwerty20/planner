@@ -1,8 +1,8 @@
-package by.korchagin.planner.reminder.delivery.service;
+package by.korchagin.planner.reminder.service;
 
 import java.time.Clock;
 
-import by.korchagin.planner.reminder.delivery.repository.ReminderDeliveryRepository;
+import by.korchagin.planner.reminder.repository.ReminderDeliveryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

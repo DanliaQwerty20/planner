@@ -1,4 +1,4 @@
-package by.korchagin.planner.reminder.delivery.entity;
+package by.korchagin.planner.reminder.entity;
 
 public enum ReminderDeliveryStatus {
 	PENDING,

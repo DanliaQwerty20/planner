@@ -1,10 +1,10 @@
-package by.korchagin.planner.reminder.delivery.service;
+package by.korchagin.planner.reminder.service;
 
 import java.time.Clock;
 
-import by.korchagin.planner.reminder.delivery.entity.ReminderDeliveryStatus;
-import by.korchagin.planner.reminder.delivery.gateway.ReminderMessageSender;
-import by.korchagin.planner.reminder.delivery.repository.ReminderDeliveryRepository;
+import by.korchagin.planner.reminder.entity.ReminderDeliveryStatus;
+import by.korchagin.planner.reminder.repository.ReminderDeliveryRepository;
+import by.korchagin.planner.telegram.client.TelegramClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReminderDeliverySenderService {
 
 	private final ReminderDeliveryRepository reminderDeliveryRepository;
-	private final ReminderMessageSender reminderMessageSender;
+	private final TelegramClient telegramClient;
 	private final Clock clock;
 
 	@Transactional(transactionManager = "transactionManager")
@@ -26,7 +26,7 @@ public class ReminderDeliverySenderService {
 			return false;
 		}
 
-		reminderMessageSender.send(delivery.getTelegramUserId(), delivery.getText());
+		telegramClient.sendMessage(delivery.getTelegramUserId(), delivery.getText());
 		delivery.markSent(clock.instant());
 		return true;
 	}
