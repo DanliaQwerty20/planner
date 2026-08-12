@@ -1,0 +1,18 @@
+{
+  "update_id": 10001,
+  "message": {
+    "message_id": 51,
+    "from": {
+      "id": 42,
+      "is_bot": false,
+      "first_name": "Danila",
+      "language_code": "ru"
+    },
+    "chat": {
+      "id": 42,
+      "type": "private"
+    },
+    "date": 1786572000,
+    "text": "Завтра в 15:00 покормить кота"
+  }
+}
