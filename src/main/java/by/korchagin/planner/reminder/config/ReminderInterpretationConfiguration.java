@@ -1,18 +1,20 @@
 package by.korchagin.planner.reminder.config;
 
 import by.korchagin.planner.reminder.service.ReminderTextInterpreter;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import by.korchagin.planner.reminder.service.RussianReminderTextInterpreter;
+import java.time.Clock;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(ReminderInterpretationProperties.class)
 public class ReminderInterpretationConfiguration {
 
 	@Bean
-	@ConditionalOnMissingBean(ReminderTextInterpreter.class)
-	ReminderTextInterpreter reminderTextInterpreter() {
-		return text -> {
-			throw new IllegalStateException("Reminder text interpreter is not configured");
-		};
+	ReminderTextInterpreter reminderTextInterpreter(
+			Clock clock,
+			ReminderInterpretationProperties properties) {
+		return new RussianReminderTextInterpreter(clock, properties.zoneId());
 	}
 }

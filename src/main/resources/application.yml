@@ -48,3 +48,8 @@ logging:
   level:
     root: INFO
     by.korchagin.planner: ${APP_LOG_LEVEL:INFO}
+
+planner:
+  reminder:
+    interpretation:
+      time-zone: ${REMINDER_TIME_ZONE:Europe/Moscow}

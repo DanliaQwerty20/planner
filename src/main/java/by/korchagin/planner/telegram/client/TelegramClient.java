@@ -2,5 +2,9 @@ package by.korchagin.planner.telegram.client;
 
 public interface TelegramClient {
 
-	void sendMessage(long telegramUserId, String text);
+	void sendMessage(long chatId, String text);
+
+	void sendConfirmation(long chatId, String text, String confirmationData);
+
+	byte[] downloadFile(String fileId);
 }

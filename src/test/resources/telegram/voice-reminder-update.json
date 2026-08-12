@@ -1,0 +1,24 @@
+{
+  "update_id": 10003,
+  "message": {
+    "message_id": 53,
+    "from": {
+      "id": 42,
+      "is_bot": false,
+      "first_name": "Danila",
+      "language_code": "ru"
+    },
+    "chat": {
+      "id": 42,
+      "type": "private"
+    },
+    "date": 1786572120,
+    "voice": {
+      "duration": 4,
+      "mime_type": "audio/ogg",
+      "file_id": "voice-file-1",
+      "file_unique_id": "voice-unique-1",
+      "file_size": 12345
+    }
+  }
+}
