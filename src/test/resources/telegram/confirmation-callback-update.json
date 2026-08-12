@@ -1,0 +1,20 @@
+{
+  "update_id": 10002,
+  "callback_query": {
+    "id": "callback-1",
+    "from": {
+      "id": 42,
+      "is_bot": false,
+      "first_name": "Danila"
+    },
+    "message": {
+      "message_id": 52,
+      "chat": {
+        "id": 42,
+        "type": "private"
+      },
+      "date": 1786572060
+    },
+    "data": "reminder:confirm:DRAFT_ID"
+  }
+}

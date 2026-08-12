@@ -11,8 +11,16 @@ public class TelegramConfiguration {
 	@Bean
 	@ConditionalOnMissingBean(TelegramClient.class)
 	TelegramClient telegramClient() {
-		return (telegramUserId, text) -> {
-			throw new IllegalStateException("Telegram client is not configured");
+		return new TelegramClient() {
+			@Override
+			public void sendMessage(long chatId, String text) {
+				throw new IllegalStateException("Telegram client is not configured");
+			}
+
+			@Override
+			public void sendConfirmation(long chatId, String text, String confirmationData) {
+				throw new IllegalStateException("Telegram client is not configured");
+			}
 		};
 	}
 }

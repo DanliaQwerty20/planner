@@ -3,6 +3,8 @@ package by.korchagin.planner.telegram.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.ArgumentMatchers.eq;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -56,9 +58,10 @@ class TelegramTextUpdateIntegrationTest {
 		telegramUpdateService.handle(update);
 
 		verify(reminderTextInterpreter).interpret("Завтра в 15:00 покормить кота");
-		verify(telegramClient).sendMessage(
-				TELEGRAM_USER_ID,
-				"Проверь напоминание:\n14.08.2026, 15:00 — Покормить кота");
+		verify(telegramClient).sendConfirmation(
+				eq(TELEGRAM_USER_ID),
+				eq("Проверь напоминание:\n14.08.2026, 15:00 — Покормить кота"),
+				startsWith("reminder:confirm:"));
 		assertThat(reminderRepository.count()).isZero();
 	}
 
