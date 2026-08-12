@@ -9,6 +9,7 @@ import by.korchagin.planner.reminder.service.ReminderDraftService;
 import by.korchagin.planner.reminder.service.ReminderTextInterpreter;
 import by.korchagin.planner.telegram.client.TelegramClient;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
+import by.korchagin.planner.voice.service.SpeechTranscriber;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,10 +24,15 @@ public class TelegramUpdateService {
 	private final ReminderTextInterpreter reminderTextInterpreter;
 	private final ReminderDraftService reminderDraftService;
 	private final TelegramClient telegramClient;
+	private final SpeechTranscriber speechTranscriber;
 
 	public void handle(TelegramUpdate update) {
 		if (update.message() != null && update.message().text() != null) {
 			handleTextMessage(update.message());
+			return;
+		}
+		if (update.message() != null && update.message().voice() != null) {
+			handleVoiceMessage(update.message());
 			return;
 		}
 		if (isConfirmationCallback(update.callbackQuery())) {
@@ -44,10 +50,28 @@ public class TelegramUpdateService {
 	}
 
 	private void handleTextMessage(TelegramUpdate.TelegramMessage message) {
-		var interpretation = reminderTextInterpreter.interpret(message.text());
-		var draft = reminderDraftService.create(message.from().id(), interpretation);
+		createDraftPreview(message.from().id(), message.chat().id(), message.text());
+	}
+
+	private void handleVoiceMessage(TelegramUpdate.TelegramMessage message) {
+		var audio = telegramClient.downloadFile(message.voice().fileId());
+		if (audio == null || audio.length == 0) {
+			throw new IllegalStateException("Downloaded voice message is empty");
+		}
+
+		var transcription = speechTranscriber.transcribe(audio);
+		if (transcription == null || transcription.isBlank()) {
+			throw new IllegalStateException("Speech transcription is empty");
+		}
+
+		createDraftPreview(message.from().id(), message.chat().id(), transcription.strip());
+	}
+
+	private void createDraftPreview(long telegramUserId, long chatId, String text) {
+		var interpretation = reminderTextInterpreter.interpret(text);
+		var draft = reminderDraftService.create(telegramUserId, interpretation);
 		telegramClient.sendConfirmation(
-				message.chat().id(),
+				chatId,
 				formatPreview(interpretation),
 				CONFIRM_CALLBACK_PREFIX + draft.getId());
 	}

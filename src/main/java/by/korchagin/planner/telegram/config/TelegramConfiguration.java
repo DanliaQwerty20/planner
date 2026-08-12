@@ -21,6 +21,11 @@ public class TelegramConfiguration {
 			public void sendConfirmation(long chatId, String text, String confirmationData) {
 				throw new IllegalStateException("Telegram client is not configured");
 			}
+
+			@Override
+			public byte[] downloadFile(String fileId) {
+				throw new IllegalStateException("Telegram client is not configured");
+			}
 		};
 	}
 }

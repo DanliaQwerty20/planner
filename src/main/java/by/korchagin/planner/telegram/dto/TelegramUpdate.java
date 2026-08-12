@@ -14,7 +14,8 @@ public record TelegramUpdate(
 			@JsonProperty("message_id") long messageId,
 			TelegramUser from,
 			TelegramChat chat,
-			String text) {
+			String text,
+			TelegramVoice voice) {
 	}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
@@ -27,6 +28,15 @@ public record TelegramUpdate(
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public record TelegramUser(long id) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public record TelegramVoice(
+			@JsonProperty("file_id") String fileId,
+			@JsonProperty("file_unique_id") String fileUniqueId,
+			int duration,
+			@JsonProperty("mime_type") String mimeType,
+			@JsonProperty("file_size") long fileSize) {
 	}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
