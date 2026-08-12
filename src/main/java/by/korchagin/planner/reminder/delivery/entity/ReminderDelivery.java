@@ -1,6 +1,7 @@
 package by.korchagin.planner.reminder.delivery.entity;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -42,4 +43,13 @@ public class ReminderDelivery {
 
 	@Version
 	private Long version;
+
+	public void markSent(Instant sentAt) {
+		if (status != ReminderDeliveryStatus.PENDING) {
+			throw new IllegalStateException("Only pending delivery can be marked as sent");
+		}
+
+		this.sentAt = Objects.requireNonNull(sentAt, "sentAt must not be null");
+		status = ReminderDeliveryStatus.SENT;
+	}
 }

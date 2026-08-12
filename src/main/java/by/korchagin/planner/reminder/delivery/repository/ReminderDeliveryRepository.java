@@ -1,15 +1,22 @@
 package by.korchagin.planner.reminder.delivery.repository;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import by.korchagin.planner.reminder.delivery.entity.ReminderDelivery;
+import by.korchagin.planner.reminder.delivery.entity.ReminderDeliveryStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ReminderDeliveryRepository extends JpaRepository<ReminderDelivery, UUID> {
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	Optional<ReminderDelivery> findFirstByStatusOrderByCreatedAtAsc(ReminderDeliveryStatus status);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query(value = """
