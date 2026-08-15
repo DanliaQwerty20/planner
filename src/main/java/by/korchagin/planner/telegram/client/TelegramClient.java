@@ -4,7 +4,7 @@ public interface TelegramClient {
 
 	void sendMessage(long chatId, String text);
 
-	void sendReminder(long chatId, String text, String completionData);
+	void sendReminder(long chatId, String text, String completionData, String snoozeData);
 
 	void sendConfirmation(long chatId, String text, String confirmationData);
 
