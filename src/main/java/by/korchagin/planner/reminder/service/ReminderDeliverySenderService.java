@@ -28,10 +28,12 @@ public class ReminderDeliverySenderService {
 		}
 
 		var completionAction = TelegramReminderAction.complete(delivery.getReminderId());
+		var snoozeAction = TelegramReminderAction.snooze(delivery.getId());
 		telegramClient.sendReminder(
 				delivery.getTelegramUserId(),
 				delivery.getText(),
-				completionAction.data());
+				completionAction.data(),
+				snoozeAction.data());
 		delivery.markSent(clock.instant());
 		return true;
 	}

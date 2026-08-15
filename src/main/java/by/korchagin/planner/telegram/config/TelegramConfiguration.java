@@ -18,7 +18,7 @@ public class TelegramConfiguration {
 			}
 
 			@Override
-			public void sendReminder(long chatId, String text, String completionData) {
+			public void sendReminder(long chatId, String text, String completionData, String snoozeData) {
 				throw new IllegalStateException("Telegram client is not configured");
 			}
 

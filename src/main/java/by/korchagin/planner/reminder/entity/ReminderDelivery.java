@@ -22,6 +22,9 @@ import lombok.NoArgsConstructor;
 public class ReminderDelivery {
 
 	@Id
+	@Column(nullable = false, updatable = false)
+	private UUID id;
+
 	@Column(name = "reminder_id", nullable = false, updatable = false)
 	private UUID reminderId;
 
@@ -38,8 +41,14 @@ public class ReminderDelivery {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
+	@Column(name = "scheduled_for", nullable = false, updatable = false)
+	private Instant scheduledFor;
+
 	@Column(name = "sent_at")
 	private Instant sentAt;
+
+	@Column(name = "snoozed_until")
+	private Instant snoozedUntil;
 
 	@Version
 	private Long version;
@@ -51,5 +60,16 @@ public class ReminderDelivery {
 
 		this.sentAt = Objects.requireNonNull(sentAt, "sentAt must not be null");
 		status = ReminderDeliveryStatus.SENT;
+	}
+
+	public void markSnoozedUntil(Instant snoozedUntil) {
+		if (status != ReminderDeliveryStatus.SENT) {
+			throw new IllegalStateException("Only sent delivery can be snoozed");
+		}
+		if (this.snoozedUntil != null) {
+			return;
+		}
+
+		this.snoozedUntil = Objects.requireNonNull(snoozedUntil, "snoozedUntil must not be null");
 	}
 }
