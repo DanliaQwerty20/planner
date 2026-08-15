@@ -18,6 +18,11 @@ public class TelegramConfiguration {
 			}
 
 			@Override
+			public void sendReminder(long chatId, String text, String completionData) {
+				throw new IllegalStateException("Telegram client is not configured");
+			}
+
+			@Override
 			public void sendConfirmation(long chatId, String text, String confirmationData) {
 				throw new IllegalStateException("Telegram client is not configured");
 			}

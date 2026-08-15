@@ -5,6 +5,7 @@ import java.time.Clock;
 import by.korchagin.planner.reminder.entity.ReminderDeliveryStatus;
 import by.korchagin.planner.reminder.repository.ReminderDeliveryRepository;
 import by.korchagin.planner.telegram.client.TelegramClient;
+import by.korchagin.planner.telegram.dto.TelegramReminderAction;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,11 @@ public class ReminderDeliverySenderService {
 			return false;
 		}
 
-		telegramClient.sendMessage(delivery.getTelegramUserId(), delivery.getText());
+		var completionAction = TelegramReminderAction.complete(delivery.getReminderId());
+		telegramClient.sendReminder(
+				delivery.getTelegramUserId(),
+				delivery.getText(),
+				completionAction.data());
 		delivery.markSent(clock.instant());
 		return true;
 	}
