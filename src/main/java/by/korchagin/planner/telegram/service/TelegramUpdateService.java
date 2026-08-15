@@ -1,14 +1,17 @@
 package by.korchagin.planner.telegram.service;
 
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import java.util.UUID;
 
 import by.korchagin.planner.reminder.dto.ReminderConfirmation;
 import by.korchagin.planner.reminder.dto.ReminderClarification;
 import by.korchagin.planner.reminder.dto.ReminderInterpretation;
 import by.korchagin.planner.reminder.service.ReminderDraftService;
+import by.korchagin.planner.reminder.service.ReminderService;
 import by.korchagin.planner.reminder.service.ReminderTextInterpreter;
 import by.korchagin.planner.telegram.client.TelegramClient;
+import by.korchagin.planner.telegram.dto.TelegramReminderAction;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
 import by.korchagin.planner.voice.service.SpeechTranscriber;
 import lombok.RequiredArgsConstructor;
@@ -18,12 +21,12 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TelegramUpdateService {
 
-	private static final DateTimeFormatter DATE_TIME_FORMATTER =
-			DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm");
+	private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm");
 	private static final String CONFIRM_CALLBACK_PREFIX = "reminder:confirm:";
 
 	private final ReminderTextInterpreter reminderTextInterpreter;
 	private final ReminderDraftService reminderDraftService;
+	private final ReminderService reminderService;
 	private final TelegramClient telegramClient;
 	private final SpeechTranscriber speechTranscriber;
 
@@ -40,6 +43,11 @@ public class TelegramUpdateService {
 			handleConfirmation(update.callbackQuery());
 			return;
 		}
+		var completionAction = completionAction(update.callbackQuery());
+		if (completionAction.isPresent()) {
+			handleCompletion(update.callbackQuery(), completionAction.orElseThrow());
+			return;
+		}
 
 		throw new IllegalArgumentException("Unsupported Telegram update: " + update.updateId());
 	}
@@ -48,6 +56,14 @@ public class TelegramUpdateService {
 		return callbackQuery != null
 				&& callbackQuery.data() != null
 				&& callbackQuery.data().startsWith(CONFIRM_CALLBACK_PREFIX);
+	}
+
+	private Optional<TelegramReminderAction> completionAction(
+			TelegramUpdate.TelegramCallbackQuery callbackQuery) {
+		if (callbackQuery == null) {
+			return Optional.empty();
+		}
+		return TelegramReminderAction.parseCompletion(callbackQuery.data());
 	}
 
 	private void handleTextMessage(TelegramUpdate.TelegramMessage message) {
@@ -89,6 +105,15 @@ public class TelegramUpdateService {
 		telegramClient.sendMessage(
 				callbackQuery.message().chat().id(),
 				formatConfirmation(confirmation));
+	}
+
+	private void handleCompletion(
+			TelegramUpdate.TelegramCallbackQuery callbackQuery,
+			TelegramReminderAction action) {
+		var reminder = reminderService.complete(action.reminderId(), callbackQuery.from().id());
+		telegramClient.sendMessage(
+				callbackQuery.message().chat().id(),
+				"Напоминание выполнено: " + reminder.getText());
 	}
 
 	private String formatPreview(ReminderInterpretation interpretation) {

@@ -67,7 +67,10 @@ class ReminderSenderIntegrationTest {
 		var delivery = reminderDeliveryRepository.findById(reminderId).orElseThrow();
 
 		assertThat(sent).isTrue();
-		verify(telegramClient).sendMessage(TELEGRAM_USER_ID, "Покормить кота");
+		verify(telegramClient).sendReminder(
+				TELEGRAM_USER_ID,
+				"Покормить кота",
+				"reminder:complete:" + reminderId);
 		assertThat(delivery.getStatus()).isEqualTo(ReminderDeliveryStatus.SENT);
 		assertThat(delivery.getSentAt()).isEqualTo(PROCESSING_TIME);
 
@@ -80,7 +83,10 @@ class ReminderSenderIntegrationTest {
 		var reminderId = createPendingDelivery();
 		doThrow(new RuntimeException("Telegram unavailable"))
 				.when(telegramClient)
-				.sendMessage(TELEGRAM_USER_ID, "Покормить кота");
+				.sendReminder(
+						TELEGRAM_USER_ID,
+						"Покормить кота",
+						"reminder:complete:" + reminderId);
 
 		assertThatThrownBy(reminderDeliverySenderService::sendNextPendingDelivery)
 				.isInstanceOf(RuntimeException.class)
