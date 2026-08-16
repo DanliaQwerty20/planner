@@ -1,0 +1,2 @@
+ALTER TABLE reminders
+    ADD COLUMN cancelled_at TIMESTAMP WITH TIME ZONE;

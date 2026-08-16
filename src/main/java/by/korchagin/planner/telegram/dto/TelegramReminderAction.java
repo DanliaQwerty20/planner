@@ -21,6 +21,10 @@ public record TelegramReminderAction(Type type, UUID targetId) {
 		return new TelegramReminderAction(Type.SNOOZE, deliveryId);
 	}
 
+	public static TelegramReminderAction cancel(UUID reminderId) {
+		return new TelegramReminderAction(Type.CANCEL, reminderId);
+	}
+
 	public static Optional<TelegramReminderAction> parse(String data) {
 		if (data == null || !data.startsWith(PREFIX)) {
 			return Optional.empty();
@@ -46,7 +50,8 @@ public record TelegramReminderAction(Type type, UUID targetId) {
 
 	public enum Type {
 		COMPLETE("complete"),
-		SNOOZE("snooze");
+		SNOOZE("snooze"),
+		CANCEL("cancel");
 
 		private final String value;
 

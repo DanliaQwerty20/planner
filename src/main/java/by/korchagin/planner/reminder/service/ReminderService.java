@@ -32,6 +32,12 @@ public class ReminderService {
 		return reminder;
 	}
 
+	public Reminder cancel(UUID id, long telegramUserId) {
+		var reminder = findByIdAndTelegramUserId(id, telegramUserId);
+		reminder.cancel(clock.instant());
+		return reminder;
+	}
+
 	public Reminder reschedule(UUID id, long telegramUserId, Instant newRemindAt) {
 		var reminder = findByIdAndTelegramUserId(id, telegramUserId);
 		reminder.reschedule(newRemindAt, clock.instant());

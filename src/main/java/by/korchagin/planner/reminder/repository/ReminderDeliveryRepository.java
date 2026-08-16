@@ -22,6 +22,16 @@ public interface ReminderDeliveryRepository extends JpaRepository<ReminderDelive
 	Optional<ReminderDelivery> findByIdAndTelegramUserId(UUID id, long telegramUserId);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("""
+			update ReminderDelivery delivery
+			set delivery.status = by.korchagin.planner.reminder.entity.ReminderDeliveryStatus.CANCELLED,
+			    delivery.version = delivery.version + 1
+			where delivery.reminderId = :reminderId
+			  and delivery.status = by.korchagin.planner.reminder.entity.ReminderDeliveryStatus.PENDING
+			""")
+	int cancelPendingByReminderId(@Param("reminderId") UUID reminderId);
+
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query(value = """
 			INSERT INTO reminder_deliveries (
 			    id,
