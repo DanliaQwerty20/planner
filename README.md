@@ -98,6 +98,18 @@ Invoke-RestMethod `
 Токен и webhook secret нельзя добавлять в Git. Telegram присылает secret в заголовке
 `X-Telegram-Bot-Api-Secret-Token`; приложение отклоняет запросы с неверным значением.
 
+## Распознавание голоса
+
+Реальный speech-to-text провайдер по умолчанию выключен. Для OpenAI transcription API задайте:
+
+- `VOICE_TRANSCRIPTION_ENABLED=true`;
+- `OPENAI_API_KEY` — API key из OpenAI Platform;
+- `OPENAI_TRANSCRIPTION_MODEL` — по умолчанию `gpt-4o-mini-transcribe`;
+- `OPENAI_TRANSCRIPTION_LANGUAGE` — по умолчанию `ru`.
+
+Аудио отправляется в OpenAI только после включения провайдера. API key должен храниться только
+в локальном `.env` или secret storage площадки размещения и не должен попадать в Git.
+
 ## CI
 
 Workflow `.github/workflows/ci.yml` запускается для push и pull request:
