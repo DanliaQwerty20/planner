@@ -22,9 +22,14 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  task:
+    scheduling:
+      pool:
+        size: 2
+      thread-name-prefix: reminder-worker-
 
 server:
-  port: ${PORT:8080}
+  port: ${PORT:8081}
   shutdown: graceful
   forward-headers-strategy: framework
 
@@ -50,6 +55,25 @@ logging:
     by.korchagin.planner: ${APP_LOG_LEVEL:INFO}
 
 planner:
+  telegram:
+    enabled: ${TELEGRAM_ENABLED:false}
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+    api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
+  voice:
+    transcription:
+      enabled: ${VOICE_TRANSCRIPTION_ENABLED:false}
+      api-key: ${OPENAI_API_KEY:}
+      api-base-url: ${OPENAI_API_BASE_URL:https://api.openai.com}
+      model: ${OPENAI_TRANSCRIPTION_MODEL:gpt-4o-mini-transcribe}
+      language: ${OPENAI_TRANSCRIPTION_LANGUAGE:ru}
+      connect-timeout: ${OPENAI_CONNECT_TIMEOUT:5s}
+      read-timeout: ${OPENAI_READ_TIMEOUT:60s}
   reminder:
     interpretation:
       time-zone: ${REMINDER_TIME_ZONE:Europe/Moscow}
+    scheduling:
+      enabled: ${REMINDER_SCHEDULING_ENABLED:true}
+      initial-delay: ${REMINDER_SCHEDULING_INITIAL_DELAY:5s}
+      enqueue-interval: ${REMINDER_ENQUEUE_INTERVAL:1s}
+      send-interval: ${REMINDER_SEND_INTERVAL:1s}

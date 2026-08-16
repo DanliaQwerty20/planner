@@ -10,5 +10,7 @@ public interface TelegramClient {
 
 	void sendConfirmation(long chatId, String text, String confirmationData);
 
+	void answerCallbackQuery(String callbackQueryId);
+
 	byte[] downloadFile(String fileId);
 }

@@ -70,6 +70,46 @@ docker build -t voice-planner:local .
 
 В production пароль базы должен поступать из хранилища секретов выбранной платформы. Файл `.env` предназначен только для локальной разработки.
 
+## Telegram Bot API
+
+По умолчанию реальная Telegram-интеграция выключена. Для запуска бота задайте:
+
+- `TELEGRAM_ENABLED=true`;
+- `TELEGRAM_BOT_TOKEN` — токен, полученный у BotFather;
+- `TELEGRAM_WEBHOOK_SECRET` — случайная строка из букв, цифр, `_` и `-`, длиной до 256 символов.
+
+После публикации приложения зарегистрируйте публичный HTTPS endpoint
+`https://<your-domain>/api/telegram/webhook` через метод `setWebhook`:
+
+```powershell
+$request = @{
+  url = "https://<your-domain>/api/telegram/webhook"
+  secret_token = $env:TELEGRAM_WEBHOOK_SECRET
+  allowed_updates = @("message", "callback_query")
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "https://api.telegram.org/bot$env:TELEGRAM_BOT_TOKEN/setWebhook" `
+  -ContentType "application/json" `
+  -Body $request
+```
+
+Токен и webhook secret нельзя добавлять в Git. Telegram присылает secret в заголовке
+`X-Telegram-Bot-Api-Secret-Token`; приложение отклоняет запросы с неверным значением.
+
+## Распознавание голоса
+
+Реальный speech-to-text провайдер по умолчанию выключен. Для OpenAI transcription API задайте:
+
+- `VOICE_TRANSCRIPTION_ENABLED=true`;
+- `OPENAI_API_KEY` — API key из OpenAI Platform;
+- `OPENAI_TRANSCRIPTION_MODEL` — по умолчанию `gpt-4o-mini-transcribe`;
+- `OPENAI_TRANSCRIPTION_LANGUAGE` — по умолчанию `ru`.
+
+Аудио отправляется в OpenAI только после включения провайдера. API key должен храниться только
+в локальном `.env` или secret storage площадки размещения и не должен попадать в Git.
+
 ## CI
 
 Workflow `.github/workflows/ci.yml` запускается для push и pull request:
