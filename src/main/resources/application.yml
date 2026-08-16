@@ -60,6 +60,15 @@ planner:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
     api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
+  voice:
+    transcription:
+      enabled: ${VOICE_TRANSCRIPTION_ENABLED:false}
+      api-key: ${OPENAI_API_KEY:}
+      api-base-url: ${OPENAI_API_BASE_URL:https://api.openai.com}
+      model: ${OPENAI_TRANSCRIPTION_MODEL:gpt-4o-mini-transcribe}
+      language: ${OPENAI_TRANSCRIPTION_LANGUAGE:ru}
+      connect-timeout: ${OPENAI_CONNECT_TIMEOUT:5s}
+      read-timeout: ${OPENAI_READ_TIMEOUT:60s}
   reminder:
     interpretation:
       time-zone: ${REMINDER_TIME_ZONE:Europe/Moscow}
