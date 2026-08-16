@@ -15,6 +15,7 @@ import java.util.UUID;
 import by.korchagin.planner.reminder.entity.Reminder;
 import by.korchagin.planner.reminder.entity.ReminderStatus;
 import by.korchagin.planner.reminder.exception.InvalidReminderException;
+import by.korchagin.planner.reminder.exception.ReminderAlreadyCancelledException;
 import by.korchagin.planner.reminder.exception.ReminderAlreadyCompletedException;
 import by.korchagin.planner.reminder.exception.ReminderNotFoundException;
 import by.korchagin.planner.reminder.repository.ReminderRepository;
@@ -134,6 +135,55 @@ class ReminderServiceTest {
 	}
 
 	@Test
+	void cancel_whenReminderIsScheduled_shouldCancelReminder() {
+		var reminder = scheduledReminder();
+		when(reminderRepository.findByIdAndTelegramUserId(REMINDER_ID, TELEGRAM_USER_ID))
+				.thenReturn(Optional.of(reminder));
+
+		var result = reminderService.cancel(REMINDER_ID, TELEGRAM_USER_ID);
+
+		assertThat(result.getStatus()).isEqualTo(ReminderStatus.CANCELLED);
+		assertThat(result.getCancelledAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	void cancel_whenReminderIsAlreadyCancelled_shouldKeepOriginalCancellationTime() {
+		var reminder = scheduledReminder();
+		var originalCancellationTime = NOW.minusSeconds(60);
+		reminder.cancel(originalCancellationTime);
+		when(reminderRepository.findByIdAndTelegramUserId(REMINDER_ID, TELEGRAM_USER_ID))
+				.thenReturn(Optional.of(reminder));
+
+		var result = reminderService.cancel(REMINDER_ID, TELEGRAM_USER_ID);
+
+		assertThat(result.getCancelledAt()).isEqualTo(originalCancellationTime);
+	}
+
+	@Test
+	void cancel_whenReminderIsCompleted_shouldThrowReminderAlreadyCompletedException() {
+		var reminder = scheduledReminder();
+		reminder.complete(NOW.minusSeconds(60));
+		when(reminderRepository.findByIdAndTelegramUserId(REMINDER_ID, TELEGRAM_USER_ID))
+				.thenReturn(Optional.of(reminder));
+
+		assertThatThrownBy(() -> reminderService.cancel(REMINDER_ID, TELEGRAM_USER_ID))
+				.isInstanceOf(ReminderAlreadyCompletedException.class)
+				.hasMessage("Completed reminder cannot be cancelled");
+	}
+
+	@Test
+	void complete_whenReminderIsCancelled_shouldThrowReminderAlreadyCancelledException() {
+		var reminder = scheduledReminder();
+		reminder.cancel(NOW.minusSeconds(60));
+		when(reminderRepository.findByIdAndTelegramUserId(REMINDER_ID, TELEGRAM_USER_ID))
+				.thenReturn(Optional.of(reminder));
+
+		assertThatThrownBy(() -> reminderService.complete(REMINDER_ID, TELEGRAM_USER_ID))
+				.isInstanceOf(ReminderAlreadyCancelledException.class)
+				.hasMessage("Cancelled reminder cannot be completed");
+	}
+
+	@Test
 	void reschedule_whenReminderIsScheduled_shouldChangeReminderTime() {
 		var reminder = scheduledReminder();
 		var newTime = NOW.plusSeconds(7200);
@@ -158,6 +208,21 @@ class ReminderServiceTest {
 				NOW.plusSeconds(7200)))
 				.isInstanceOf(ReminderAlreadyCompletedException.class)
 				.hasMessage("Completed reminder cannot be rescheduled");
+	}
+
+	@Test
+	void reschedule_whenReminderIsCancelled_shouldThrowReminderAlreadyCancelledException() {
+		var reminder = scheduledReminder();
+		reminder.cancel(NOW.minusSeconds(60));
+		when(reminderRepository.findByIdAndTelegramUserId(REMINDER_ID, TELEGRAM_USER_ID))
+				.thenReturn(Optional.of(reminder));
+
+		assertThatThrownBy(() -> reminderService.reschedule(
+				REMINDER_ID,
+				TELEGRAM_USER_ID,
+				NOW.plusSeconds(7200)))
+				.isInstanceOf(ReminderAlreadyCancelledException.class)
+				.hasMessage("Cancelled reminder cannot be rescheduled");
 	}
 
 	@Test

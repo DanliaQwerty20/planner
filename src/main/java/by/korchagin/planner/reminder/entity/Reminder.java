@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import by.korchagin.planner.reminder.exception.InvalidReminderException;
+import by.korchagin.planner.reminder.exception.ReminderAlreadyCancelledException;
 import by.korchagin.planner.reminder.exception.ReminderAlreadyCompletedException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -52,6 +53,9 @@ public class Reminder {
 	@Column(name = "completed_at")
 	private Instant completedAt;
 
+	@Column(name = "cancelled_at")
+	private Instant cancelledAt;
+
 	@Version
 	private Long version;
 
@@ -72,6 +76,9 @@ public class Reminder {
 		if (status == ReminderStatus.COMPLETED) {
 			return;
 		}
+		if (status == ReminderStatus.CANCELLED) {
+			throw new ReminderAlreadyCancelledException("Cancelled reminder cannot be completed");
+		}
 		if (completionTime == null) {
 			throw new InvalidReminderException("Completion time must not be null");
 		}
@@ -80,9 +87,27 @@ public class Reminder {
 		completedAt = completionTime;
 	}
 
+	public void cancel(Instant cancellationTime) {
+		if (status == ReminderStatus.CANCELLED) {
+			return;
+		}
+		if (status == ReminderStatus.COMPLETED) {
+			throw new ReminderAlreadyCompletedException("Completed reminder cannot be cancelled");
+		}
+		if (cancellationTime == null) {
+			throw new InvalidReminderException("Cancellation time must not be null");
+		}
+
+		status = ReminderStatus.CANCELLED;
+		cancelledAt = cancellationTime;
+	}
+
 	public void reschedule(Instant newRemindAt, Instant currentTime) {
 		if (status == ReminderStatus.COMPLETED) {
 			throw new ReminderAlreadyCompletedException("Completed reminder cannot be rescheduled");
+		}
+		if (status == ReminderStatus.CANCELLED) {
+			throw new ReminderAlreadyCancelledException("Cancelled reminder cannot be rescheduled");
 		}
 
 		validateFutureTime(newRemindAt, currentTime);

@@ -1,6 +1,7 @@
 package by.korchagin.planner.telegram.config;
 
 import by.korchagin.planner.telegram.client.TelegramClient;
+import by.korchagin.planner.telegram.dto.TelegramReminderActions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,7 +19,7 @@ public class TelegramConfiguration {
 			}
 
 			@Override
-			public void sendReminder(long chatId, String text, String completionData, String snoozeData) {
+			public void sendReminder(long chatId, String text, TelegramReminderActions actions) {
 				throw new IllegalStateException("Telegram client is not configured");
 			}
 

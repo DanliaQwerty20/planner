@@ -16,6 +16,7 @@ import by.korchagin.planner.reminder.entity.ReminderDeliveryStatus;
 import by.korchagin.planner.reminder.repository.ReminderDeliveryRepository;
 import by.korchagin.planner.reminder.repository.ReminderRepository;
 import by.korchagin.planner.telegram.client.TelegramClient;
+import by.korchagin.planner.telegram.dto.TelegramReminderActions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,8 +71,10 @@ class ReminderSenderIntegrationTest {
 		verify(telegramClient).sendReminder(
 				TELEGRAM_USER_ID,
 				"Покормить кота",
-				"reminder:complete:" + pendingDelivery.reminderId(),
-				"reminder:snooze:" + pendingDelivery.deliveryId());
+				new TelegramReminderActions(
+						"reminder:complete:" + pendingDelivery.reminderId(),
+						"reminder:snooze:" + pendingDelivery.deliveryId(),
+						"reminder:cancel:" + pendingDelivery.reminderId()));
 		assertThat(delivery.getStatus()).isEqualTo(ReminderDeliveryStatus.SENT);
 		assertThat(delivery.getSentAt()).isEqualTo(PROCESSING_TIME);
 
@@ -87,8 +90,10 @@ class ReminderSenderIntegrationTest {
 				.sendReminder(
 						TELEGRAM_USER_ID,
 						"Покормить кота",
-						"reminder:complete:" + pendingDelivery.reminderId(),
-						"reminder:snooze:" + pendingDelivery.deliveryId());
+						new TelegramReminderActions(
+								"reminder:complete:" + pendingDelivery.reminderId(),
+								"reminder:snooze:" + pendingDelivery.deliveryId(),
+								"reminder:cancel:" + pendingDelivery.reminderId()));
 
 		assertThatThrownBy(reminderDeliverySenderService::sendNextPendingDelivery)
 				.isInstanceOf(RuntimeException.class)
