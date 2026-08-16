@@ -71,6 +71,7 @@ class TelegramReminderCompletionIntegrationTest {
 		verify(telegramClient, times(2)).sendMessage(
 				TELEGRAM_USER_ID,
 				"Напоминание выполнено: Покормить кота");
+		verify(telegramClient, times(2)).answerCallbackQuery("callback-1");
 	}
 
 	private TelegramUpdate completionCallback(String reminderId) {

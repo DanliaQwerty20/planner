@@ -55,6 +55,11 @@ logging:
     by.korchagin.planner: ${APP_LOG_LEVEL:INFO}
 
 planner:
+  telegram:
+    enabled: ${TELEGRAM_ENABLED:false}
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+    api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
   reminder:
     interpretation:
       time-zone: ${REMINDER_TIME_ZONE:Europe/Moscow}
