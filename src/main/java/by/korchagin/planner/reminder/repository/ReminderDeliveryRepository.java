@@ -18,32 +18,44 @@ public interface ReminderDeliveryRepository extends JpaRepository<ReminderDelive
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<ReminderDelivery> findFirstByStatusOrderByCreatedAtAsc(ReminderDeliveryStatus status);
 
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	Optional<ReminderDelivery> findByIdAndTelegramUserId(UUID id, long telegramUserId);
+
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("""
+			update ReminderDelivery delivery
+			set delivery.status = by.korchagin.planner.reminder.entity.ReminderDeliveryStatus.CANCELLED,
+			    delivery.version = delivery.version + 1
+			where delivery.reminderId = :reminderId
+			  and delivery.status = by.korchagin.planner.reminder.entity.ReminderDeliveryStatus.PENDING
+			""")
+	int cancelPendingByReminderId(@Param("reminderId") UUID reminderId);
+
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query(value = """
 			INSERT INTO reminder_deliveries (
+			    id,
 			    reminder_id,
 			    telegram_user_id,
 			    text,
 			    status,
 			    created_at,
+			    scheduled_for,
 			    version
 			)
 			SELECT
+			    gen_random_uuid(),
 			    reminder.id,
 			    reminder.telegram_user_id,
 			    reminder.text,
 			    'PENDING',
 			    :createdAt,
+			    reminder.remind_at,
 			    0
 			FROM reminders reminder
 			WHERE reminder.status = 'SCHEDULED'
 			  AND reminder.remind_at <= :dueAt
-			  AND NOT EXISTS (
-			      SELECT 1
-			      FROM reminder_deliveries delivery
-			      WHERE delivery.reminder_id = reminder.id
-			  )
-			ON CONFLICT (reminder_id) DO NOTHING
+			ON CONFLICT (reminder_id, scheduled_for) DO NOTHING
 			""", nativeQuery = true)
 	int enqueueDueReminders(@Param("dueAt") Instant dueAt, @Param("createdAt") Instant createdAt);
 }

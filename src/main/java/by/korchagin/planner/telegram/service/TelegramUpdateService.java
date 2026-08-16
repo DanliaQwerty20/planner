@@ -1,5 +1,6 @@
 package by.korchagin.planner.telegram.service;
 
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
@@ -7,8 +8,10 @@ import java.util.UUID;
 import by.korchagin.planner.reminder.dto.ReminderConfirmation;
 import by.korchagin.planner.reminder.dto.ReminderClarification;
 import by.korchagin.planner.reminder.dto.ReminderInterpretation;
+import by.korchagin.planner.reminder.service.ReminderCancellationService;
 import by.korchagin.planner.reminder.service.ReminderDraftService;
 import by.korchagin.planner.reminder.service.ReminderService;
+import by.korchagin.planner.reminder.service.ReminderSnoozeService;
 import by.korchagin.planner.reminder.service.ReminderTextInterpreter;
 import by.korchagin.planner.telegram.client.TelegramClient;
 import by.korchagin.planner.telegram.dto.TelegramReminderAction;
@@ -23,10 +26,13 @@ public class TelegramUpdateService {
 
 	private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm");
 	private static final String CONFIRM_CALLBACK_PREFIX = "reminder:confirm:";
+	private static final Duration SNOOZE_DELAY = Duration.ofHours(1);
 
 	private final ReminderTextInterpreter reminderTextInterpreter;
 	private final ReminderDraftService reminderDraftService;
 	private final ReminderService reminderService;
+	private final ReminderCancellationService reminderCancellationService;
+	private final ReminderSnoozeService reminderSnoozeService;
 	private final TelegramClient telegramClient;
 	private final SpeechTranscriber speechTranscriber;
 
@@ -43,9 +49,9 @@ public class TelegramUpdateService {
 			handleConfirmation(update.callbackQuery());
 			return;
 		}
-		var completionAction = completionAction(update.callbackQuery());
-		if (completionAction.isPresent()) {
-			handleCompletion(update.callbackQuery(), completionAction.orElseThrow());
+		var reminderAction = reminderAction(update.callbackQuery());
+		if (reminderAction.isPresent()) {
+			handleReminderAction(update.callbackQuery(), reminderAction.orElseThrow());
 			return;
 		}
 
@@ -58,12 +64,12 @@ public class TelegramUpdateService {
 				&& callbackQuery.data().startsWith(CONFIRM_CALLBACK_PREFIX);
 	}
 
-	private Optional<TelegramReminderAction> completionAction(
+	private Optional<TelegramReminderAction> reminderAction(
 			TelegramUpdate.TelegramCallbackQuery callbackQuery) {
 		if (callbackQuery == null) {
 			return Optional.empty();
 		}
-		return TelegramReminderAction.parseCompletion(callbackQuery.data());
+		return TelegramReminderAction.parse(callbackQuery.data());
 	}
 
 	private void handleTextMessage(TelegramUpdate.TelegramMessage message) {
@@ -107,13 +113,35 @@ public class TelegramUpdateService {
 				formatConfirmation(confirmation));
 	}
 
-	private void handleCompletion(
+	private void handleReminderAction(
 			TelegramUpdate.TelegramCallbackQuery callbackQuery,
 			TelegramReminderAction action) {
-		var reminder = reminderService.complete(action.reminderId(), callbackQuery.from().id());
+		switch (action.type()) {
+			case COMPLETE -> handleCompletion(callbackQuery, action.targetId());
+			case SNOOZE -> handleSnooze(callbackQuery, action.targetId());
+			case CANCEL -> handleCancellation(callbackQuery, action.targetId());
+		}
+	}
+
+	private void handleCompletion(TelegramUpdate.TelegramCallbackQuery callbackQuery, UUID reminderId) {
+		var reminder = reminderService.complete(reminderId, callbackQuery.from().id());
 		telegramClient.sendMessage(
 				callbackQuery.message().chat().id(),
 				"Напоминание выполнено: " + reminder.getText());
+	}
+
+	private void handleSnooze(TelegramUpdate.TelegramCallbackQuery callbackQuery, UUID deliveryId) {
+		var result = reminderSnoozeService.snooze(deliveryId, callbackQuery.from().id(), SNOOZE_DELAY);
+		telegramClient.sendMessage(
+				callbackQuery.message().chat().id(),
+				"Напомню через час: " + result.text());
+	}
+
+	private void handleCancellation(TelegramUpdate.TelegramCallbackQuery callbackQuery, UUID reminderId) {
+		var reminder = reminderCancellationService.cancel(reminderId, callbackQuery.from().id());
+		telegramClient.sendMessage(
+				callbackQuery.message().chat().id(),
+				"Напоминание отменено: " + reminder.getText());
 	}
 
 	private String formatPreview(ReminderInterpretation interpretation) {

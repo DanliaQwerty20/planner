@@ -16,6 +16,7 @@ import by.korchagin.planner.reminder.entity.ReminderDeliveryStatus;
 import by.korchagin.planner.reminder.repository.ReminderDeliveryRepository;
 import by.korchagin.planner.reminder.repository.ReminderRepository;
 import by.korchagin.planner.telegram.client.TelegramClient;
+import by.korchagin.planner.telegram.dto.TelegramReminderActions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,16 +62,19 @@ class ReminderSenderIntegrationTest {
 
 	@Test
 	void sendNextPendingDelivery_whenTelegramAcceptsMessage_shouldMarkDeliveryAsSent() {
-		var reminderId = createPendingDelivery();
+		var pendingDelivery = createPendingDelivery();
 
 		var sent = reminderDeliverySenderService.sendNextPendingDelivery();
-		var delivery = reminderDeliveryRepository.findById(reminderId).orElseThrow();
+		var delivery = reminderDeliveryRepository.findById(pendingDelivery.deliveryId()).orElseThrow();
 
 		assertThat(sent).isTrue();
 		verify(telegramClient).sendReminder(
 				TELEGRAM_USER_ID,
 				"Покормить кота",
-				"reminder:complete:" + reminderId);
+				new TelegramReminderActions(
+						"reminder:complete:" + pendingDelivery.reminderId(),
+						"reminder:snooze:" + pendingDelivery.deliveryId(),
+						"reminder:cancel:" + pendingDelivery.reminderId()));
 		assertThat(delivery.getStatus()).isEqualTo(ReminderDeliveryStatus.SENT);
 		assertThat(delivery.getSentAt()).isEqualTo(PROCESSING_TIME);
 
@@ -80,30 +84,37 @@ class ReminderSenderIntegrationTest {
 
 	@Test
 	void sendNextPendingDelivery_whenTelegramFails_shouldKeepDeliveryPendingForRetry() {
-		var reminderId = createPendingDelivery();
+		var pendingDelivery = createPendingDelivery();
 		doThrow(new RuntimeException("Telegram unavailable"))
 				.when(telegramClient)
 				.sendReminder(
 						TELEGRAM_USER_ID,
 						"Покормить кота",
-						"reminder:complete:" + reminderId);
+						new TelegramReminderActions(
+								"reminder:complete:" + pendingDelivery.reminderId(),
+								"reminder:snooze:" + pendingDelivery.deliveryId(),
+								"reminder:cancel:" + pendingDelivery.reminderId()));
 
 		assertThatThrownBy(reminderDeliverySenderService::sendNextPendingDelivery)
 				.isInstanceOf(RuntimeException.class)
 				.hasMessage("Telegram unavailable");
 
-		var delivery = reminderDeliveryRepository.findById(reminderId).orElseThrow();
+		var delivery = reminderDeliveryRepository.findById(pendingDelivery.deliveryId()).orElseThrow();
 		assertThat(delivery.getStatus()).isEqualTo(ReminderDeliveryStatus.PENDING);
 		assertThat(delivery.getSentAt()).isNull();
 	}
 
-	private UUID createPendingDelivery() {
+	private PendingDelivery createPendingDelivery() {
 		var reminder = reminderService.create(
 				TELEGRAM_USER_ID,
 				"Покормить кота",
 				CREATION_TIME.plusSeconds(60));
 		when(clock.instant()).thenReturn(PROCESSING_TIME);
 		reminderDeliveryService.enqueueDueReminders();
-		return reminder.getId();
+		var delivery = reminderDeliveryRepository.findAll().getFirst();
+		return new PendingDelivery(delivery.getId(), reminder.getId());
+	}
+
+	private record PendingDelivery(UUID deliveryId, UUID reminderId) {
 	}
 }

@@ -74,6 +74,7 @@ class ReminderDeliveryIntegrationTest {
 			assertThat(delivery.getText()).isEqualTo("Покормить кота");
 			assertThat(delivery.getStatus()).isEqualTo(ReminderDeliveryStatus.PENDING);
 			assertThat(delivery.getCreatedAt()).isEqualTo(currentTime.get());
+			assertThat(delivery.getScheduledFor()).isEqualTo(dueReminder.getRemindAt());
 		});
 	}
 }
