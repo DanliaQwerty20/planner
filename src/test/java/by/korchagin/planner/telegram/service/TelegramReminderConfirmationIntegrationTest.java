@@ -92,6 +92,7 @@ class TelegramReminderConfirmationIntegrationTest {
 		verify(telegramClient, times(2)).sendMessage(
 				TELEGRAM_USER_ID,
 				"Напоминание создано: 14.08.2026, 15:00 — Покормить кота");
+		verify(telegramClient, times(2)).answerCallbackQuery("callback-1");
 	}
 
 	private TelegramUpdate readUpdate(String path) throws IOException {

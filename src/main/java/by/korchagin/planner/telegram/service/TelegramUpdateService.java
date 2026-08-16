@@ -111,6 +111,7 @@ public class TelegramUpdateService {
 		telegramClient.sendMessage(
 				callbackQuery.message().chat().id(),
 				formatConfirmation(confirmation));
+		telegramClient.answerCallbackQuery(callbackQuery.id());
 	}
 
 	private void handleReminderAction(
@@ -121,6 +122,7 @@ public class TelegramUpdateService {
 			case SNOOZE -> handleSnooze(callbackQuery, action.targetId());
 			case CANCEL -> handleCancellation(callbackQuery, action.targetId());
 		}
+		telegramClient.answerCallbackQuery(callbackQuery.id());
 	}
 
 	private void handleCompletion(TelegramUpdate.TelegramCallbackQuery callbackQuery, UUID reminderId) {
