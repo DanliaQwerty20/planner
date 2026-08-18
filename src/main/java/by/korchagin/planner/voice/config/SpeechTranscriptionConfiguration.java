@@ -29,8 +29,16 @@ public class SpeechTranscriptionConfiguration {
 			havingValue = "false",
 			matchIfMissing = true)
 	SpeechTranscriber unconfiguredSpeechTranscriber() {
-		return audio -> {
-			throw new IllegalStateException("Speech transcriber is not configured");
+		return new SpeechTranscriber() {
+			@Override
+			public boolean isAvailable() {
+				return false;
+			}
+
+			@Override
+			public String transcribe(byte[] audio) {
+				throw new IllegalStateException("Speech transcriber is not configured");
+			}
 		};
 	}
 }

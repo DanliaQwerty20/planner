@@ -18,8 +18,10 @@ import by.korchagin.planner.telegram.dto.TelegramReminderAction;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
 import by.korchagin.planner.voice.service.SpeechTranscriber;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TelegramUpdateService {
@@ -27,6 +29,18 @@ public class TelegramUpdateService {
 	private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm");
 	private static final String CONFIRM_CALLBACK_PREFIX = "reminder:confirm:";
 	private static final Duration SNOOZE_DELAY = Duration.ofHours(1);
+	private static final String START_COMMAND = "/start";
+	private static final String HELP_COMMAND = "/help";
+	private static final String START_MESSAGE = "Привет! Я помогу не забыть важное.\n"
+			+ "Отправь напоминание текстом, например: «завтра в 15:00 покормить кота».";
+	private static final String HELP_MESSAGE = "Напиши одним сообщением, что и когда напомнить.\n"
+			+ "Например: «в пятницу в 18:30 купить корм коту».\n"
+			+ "Перед созданием я покажу дату и текст для подтверждения.";
+	private static final String VOICE_DISABLED_MESSAGE =
+			"Голосовые сообщения пока не поддерживаются. Отправь напоминание текстом.";
+	private static final String UNSUPPORTED_MESSAGE =
+			"Пока я принимаю только текстовые напоминания. "
+					+ "Напиши, например: «завтра в 15:00 покормить кота».";
 
 	private final ReminderTextInterpreter reminderTextInterpreter;
 	private final ReminderDraftService reminderDraftService;
@@ -37,12 +51,8 @@ public class TelegramUpdateService {
 	private final SpeechTranscriber speechTranscriber;
 
 	public void handle(TelegramUpdate update) {
-		if (update.message() != null && update.message().text() != null) {
-			handleTextMessage(update.message());
-			return;
-		}
-		if (update.message() != null && update.message().voice() != null) {
-			handleVoiceMessage(update.message());
+		if (update.message() != null) {
+			handleMessage(update.message());
 			return;
 		}
 		if (isConfirmationCallback(update.callbackQuery())) {
@@ -54,8 +64,25 @@ public class TelegramUpdateService {
 			handleReminderAction(update.callbackQuery(), reminderAction.orElseThrow());
 			return;
 		}
+		if (update.callbackQuery() != null) {
+			telegramClient.answerCallbackQuery(update.callbackQuery().id());
+			return;
+		}
 
-		throw new IllegalArgumentException("Unsupported Telegram update: " + update.updateId());
+		log.debug("Ignoring unsupported Telegram update: {}", update.updateId());
+	}
+
+	private void handleMessage(TelegramUpdate.TelegramMessage message) {
+		if (message.text() != null) {
+			handleTextMessage(message);
+			return;
+		}
+		if (message.voice() != null) {
+			handleVoiceMessage(message);
+			return;
+		}
+
+		telegramClient.sendMessage(message.chat().id(), UNSUPPORTED_MESSAGE);
 	}
 
 	private boolean isConfirmationCallback(TelegramUpdate.TelegramCallbackQuery callbackQuery) {
@@ -73,10 +100,24 @@ public class TelegramUpdateService {
 	}
 
 	private void handleTextMessage(TelegramUpdate.TelegramMessage message) {
+		if (isCommand(message.text(), START_COMMAND)) {
+			telegramClient.sendMessage(message.chat().id(), START_MESSAGE);
+			return;
+		}
+		if (isCommand(message.text(), HELP_COMMAND)) {
+			telegramClient.sendMessage(message.chat().id(), HELP_MESSAGE);
+			return;
+		}
+
 		createDraftPreview(message.from().id(), message.chat().id(), message.text());
 	}
 
 	private void handleVoiceMessage(TelegramUpdate.TelegramMessage message) {
+		if (!speechTranscriber.isAvailable()) {
+			telegramClient.sendMessage(message.chat().id(), VOICE_DISABLED_MESSAGE);
+			return;
+		}
+
 		var audio = telegramClient.downloadFile(message.voice().fileId());
 		if (audio == null || audio.length == 0) {
 			throw new IllegalStateException("Downloaded voice message is empty");
@@ -88,6 +129,11 @@ public class TelegramUpdateService {
 		}
 
 		createDraftPreview(message.from().id(), message.chat().id(), transcription.strip());
+	}
+
+	private boolean isCommand(String text, String command) {
+		var normalizedText = text.strip();
+		return normalizedText.equals(command) || normalizedText.startsWith(command + "@");
 	}
 
 	private void createDraftPreview(long telegramUserId, long chatId, String text) {

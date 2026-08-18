@@ -63,6 +63,7 @@ class TelegramVoiceUpdateIntegrationTest {
 
 	@Test
 	void handle_whenUpdateContainsVoice_shouldTranscribeAndCreateDraftPreview() throws IOException {
+		when(speechTranscriber.isAvailable()).thenReturn(true);
 		when(telegramClient.downloadFile("voice-file-1")).thenReturn(VOICE_AUDIO);
 		when(speechTranscriber.transcribe(VOICE_AUDIO)).thenReturn("Завтра в 15:00 покормить кота");
 		when(reminderTextInterpreter.interpret("Завтра в 15:00 покормить кота"))
@@ -87,6 +88,7 @@ class TelegramVoiceUpdateIntegrationTest {
 
 	@Test
 	void handle_whenTranscriptionIsBlank_shouldRejectVoiceWithoutCreatingDraft() throws IOException {
+		when(speechTranscriber.isAvailable()).thenReturn(true);
 		when(telegramClient.downloadFile("voice-file-1")).thenReturn(VOICE_AUDIO);
 		when(speechTranscriber.transcribe(VOICE_AUDIO)).thenReturn(" ");
 

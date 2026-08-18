@@ -37,6 +37,11 @@ public class OpenAiSpeechTranscriber implements SpeechTranscriber {
 	}
 
 	@Override
+	public boolean isAvailable() {
+		return true;
+	}
+
+	@Override
 	public String transcribe(byte[] audio) {
 		if (audio == null || audio.length == 0) {
 			throw new SpeechTranscriptionException("Audio must not be empty");
