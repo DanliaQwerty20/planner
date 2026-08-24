@@ -13,37 +13,53 @@ Telegram-first ассистент, который превращает голо�
 - Testcontainers
 - GitHub Actions и Dependabot
 
-## Локальный запуск
+## Режимы запуска
 
-Требования: JDK 25 и Docker.
-
-1. Запустить PostgreSQL:
-
-   ```powershell
-   docker compose up -d postgres
-   ```
-
-   PostgreSQL проекта доступен с хоста на `localhost:5433`; порт `5432` оставлен свободным для локально установленного PostgreSQL.
-
-2. Запустить приложение:
-
-   ```powershell
-   .\scripts\gradle-win.ps1 bootRun
-   ```
-
-3. Проверить готовность:
-
-   ```text
-   http://localhost:8080/actuator/health/readiness
-   ```
-
-Чтобы собрать и запустить приложение целиком в контейнерах:
+Требования для разработки: JDK 25, Docker Desktop и заполненный локальный `.env`.
+Подготовить конфигурацию нужно один раз:
 
 ```powershell
-docker compose --profile app up --build
+Copy-Item .env.example .env
 ```
 
-Локальные значения можно изменить через `.env`; пример находится в `.env.example`. Настоящие секреты в Git не добавляются.
+В `.env` включить Telegram и заполнить `TELEGRAM_BOT_TOKEN` и `TELEGRAM_WEBHOOK_SECRET`.
+Настоящие секреты остаются только в `.env` и не добавляются в Git.
+
+### Local: запуск из IntelliJ IDEA
+
+Профиль `local` используется по умолчанию, поэтому параметры запуска запоминать не нужно. Достаточно
+запустить `PlannerApplication` обычной кнопкой Run или Debug в IDEA.
+
+Spring Boot автоматически:
+
+- читает локальный `.env`;
+- поднимает PostgreSQL из `compose.yml` и ждёт его готовности;
+- удаляет ранее зарегистрированный webhook без удаления ожидающих сообщений;
+- получает Telegram updates через long polling.
+
+Cloudflared и публичный DNS в local-режиме не нужны. При остановке приложения Spring Boot останавливает
+поднятый им PostgreSQL-контейнер; данные остаются в Docker volume.
+
+### Dev: полный стенд в Docker
+
+Dev-стенд запускает PostgreSQL и приложение с профилем `dev`:
+
+```powershell
+docker compose --profile dev up --build
+```
+
+Остановить стенд можно обычным `Ctrl+C`. Приложение доступно на `http://localhost:8081` и, как local,
+получает Telegram updates через long polling. Поэтому стенду не нужны Cloudflared, публичный DNS и
+регистрация временного webhook.
+
+Для запуска в фоне и последующей остановки:
+
+```powershell
+docker compose --profile dev up --build --detach
+docker compose --profile dev down
+```
+
+PostgreSQL volume при обычной остановке сохраняется.
 
 ## Проверки
 
@@ -94,6 +110,10 @@ Invoke-RestMethod `
   -ContentType "application/json" `
   -Body $request
 ```
+
+Профили `local` и `dev` используют long polling и сами удаляют старый webhook без удаления ожидающих
+updates. Webhook понадобится для будущего production-развёртывания с постоянным HTTPS-доменом. Long
+polling и webhook взаимоисключающие, а два экземпляра с одним bot token не следует запускать одновременно.
 
 Токен и webhook secret нельзя добавлять в Git. Telegram присылает secret в заголовке
 `X-Telegram-Bot-Api-Secret-Token`; приложение отклоняет запросы с неверным значением.

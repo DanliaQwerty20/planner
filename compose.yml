@@ -22,7 +22,7 @@ services:
       - no-new-privileges:true
 
   app:
-    profiles: ["app"]
+    profiles: ["dev"]
     image: voice-planner:${APP_IMAGE_TAG:-local}
     build:
       context: .
@@ -32,6 +32,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-planner}
       DATABASE_USERNAME: ${POSTGRES_USER:-planner}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-planner-local-password}
@@ -46,7 +47,7 @@ services:
       OPENAI_READ_TIMEOUT: ${OPENAI_READ_TIMEOUT:-60s}
       PORT: 8080
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_PORT:-8081}:8080"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health/readiness"]
       interval: 10s
