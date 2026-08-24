@@ -1,12 +1,15 @@
 package by.korchagin.planner.telegram.config;
 
 import by.korchagin.planner.telegram.client.TelegramBotApiClient;
+import by.korchagin.planner.telegram.client.TelegramBotApiUpdateClient;
 import by.korchagin.planner.telegram.client.TelegramClient;
+import by.korchagin.planner.telegram.client.TelegramUpdateClient;
 import by.korchagin.planner.telegram.dto.TelegramReminderActions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.client.RestClient;
 
 @Configuration(proxyBeanMethods = false)
@@ -18,6 +21,25 @@ public class TelegramConfiguration {
 	TelegramClient telegramClient(TelegramProperties telegramProperties) {
 		telegramProperties.validateEnabledConfiguration();
 		return new TelegramBotApiClient(RestClient.builder(), telegramProperties);
+	}
+
+	@Bean
+	@ConditionalOnProperty(prefix = "planner.telegram", name = "enabled", havingValue = "true")
+	@ConditionalOnProperty(prefix = "planner.telegram", name = "update-mode", havingValue = "polling")
+	TelegramUpdateClient telegramUpdateClient(TelegramProperties telegramProperties) {
+		telegramProperties.validateEnabledConfiguration();
+		return new TelegramBotApiUpdateClient(RestClient.builder(), telegramProperties);
+	}
+
+	@Bean(name = "telegramPollingTaskScheduler")
+	@ConditionalOnProperty(prefix = "planner.telegram", name = "enabled", havingValue = "true")
+	@ConditionalOnProperty(prefix = "planner.telegram", name = "update-mode", havingValue = "polling")
+	ThreadPoolTaskScheduler telegramPollingTaskScheduler() {
+		var taskScheduler = new ThreadPoolTaskScheduler();
+		taskScheduler.setPoolSize(1);
+		taskScheduler.setThreadNamePrefix("telegram-polling-");
+		taskScheduler.setWaitForTasksToCompleteOnShutdown(false);
+		return taskScheduler;
 	}
 
 	@Bean

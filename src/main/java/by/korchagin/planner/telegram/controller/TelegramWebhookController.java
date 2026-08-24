@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/api/telegram/webhook")
 @ConditionalOnProperty(prefix = "planner.telegram", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "planner.telegram", name = "update-mode", havingValue = "webhook")
 public class TelegramWebhookController {
 
 	private static final String SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token";

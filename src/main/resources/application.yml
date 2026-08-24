@@ -1,6 +1,8 @@
 spring:
   application:
     name: planner
+  profiles:
+    default: local
   lifecycle:
     timeout-per-shutdown-phase: 20s
   datasource:
@@ -60,6 +62,9 @@ planner:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
     api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
+    update-mode: webhook
+    polling-timeout: 10s
+    polling-delay: 500ms
   voice:
     transcription:
       enabled: ${VOICE_TRANSCRIPTION_ENABLED:false}

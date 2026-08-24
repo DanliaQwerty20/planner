@@ -5,12 +5,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import by.korchagin.planner.TestcontainersConfiguration;
+import by.korchagin.planner.telegram.config.TelegramProperties;
+import by.korchagin.planner.telegram.config.TelegramUpdateMode;
 import by.korchagin.planner.telegram.dto.TelegramReminderActions;
 import by.korchagin.planner.telegram.exception.TelegramApiException;
 import com.sun.net.httpserver.HttpExchange;
@@ -23,6 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.web.client.RestClient;
 
 @SpringBootTest(properties = {
 		"planner.telegram.enabled=true",
@@ -39,6 +44,8 @@ class TelegramBotApiClientIntegrationTest {
 	@Autowired
 	private TelegramClient telegramClient;
 
+	private TelegramUpdateClient telegramUpdateClient;
+
 	@DynamicPropertySource
 	static void telegramApiProperties(DynamicPropertyRegistry registry) {
 		registry.add(
@@ -49,6 +56,15 @@ class TelegramBotApiClientIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		REQUESTS.clear();
+		var telegramProperties = new TelegramProperties(
+				true,
+				"test-token",
+				"test-webhook-secret",
+				URI.create("http://localhost:" + TELEGRAM_API.getAddress().getPort()),
+				TelegramUpdateMode.POLLING,
+				Duration.ofSeconds(10),
+				Duration.ofMillis(500));
+		telegramUpdateClient = new TelegramBotApiUpdateClient(RestClient.builder(), telegramProperties);
 	}
 
 	@AfterAll
@@ -104,6 +120,33 @@ class TelegramBotApiClientIntegrationTest {
 	}
 
 	@Test
+	void deleteWebhook_shouldPreservePendingUpdates() throws InterruptedException {
+		telegramUpdateClient.deleteWebhook(false);
+
+		assertThat(nextRequest())
+				.isEqualTo(new RecordedRequest(
+						"/bottest-token/deleteWebhook",
+						"{\"drop_pending_updates\":false}"));
+	}
+
+	@Test
+	void getUpdates_shouldUseLongPollingAndMapUpdates() throws InterruptedException {
+		var updates = telegramUpdateClient.getUpdates(41L, Duration.ofSeconds(10));
+
+		assertThat(updates)
+				.singleElement()
+				.extracting(update -> update.updateId())
+				.isEqualTo(42L);
+		var request = nextRequest();
+		assertThat(request.path()).isEqualTo("/bottest-token/getUpdates");
+		assertThat(request.body())
+				.contains("\"offset\":41")
+				.contains("\"limit\":100")
+				.contains("\"timeout\":10")
+				.contains("\"allowed_updates\":[\"message\",\"callback_query\"]");
+	}
+
+	@Test
 	void downloadFile_whenTelegramReturnsMalformedPath_shouldNotExposeBotToken() {
 		assertThatThrownBy(() -> telegramClient.downloadFile("malformed-file-id"))
 				.isInstanceOf(TelegramApiException.class)
@@ -139,6 +182,10 @@ class TelegramBotApiClientIntegrationTest {
 					? "http://[invalid"
 					: "voice/reminder.oga";
 			respondJson(exchange, "{\"ok\":true,\"result\":{\"file_path\":\"" + filePath + "\"}}");
+			return;
+		}
+		if (path.endsWith("/getUpdates")) {
+			respondJson(exchange, "{\"ok\":true,\"result\":[{\"update_id\":42}]}");
 			return;
 		}
 		if (path.startsWith("/file/")) {
