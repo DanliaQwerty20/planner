@@ -1,5 +1,6 @@
 package by.korchagin.planner.telegram.service;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
@@ -16,10 +17,12 @@ import by.korchagin.planner.reminder.service.ReminderTextInterpreter;
 import by.korchagin.planner.telegram.client.TelegramClient;
 import by.korchagin.planner.telegram.dto.TelegramReminderAction;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
+import by.korchagin.planner.telegram.repository.TelegramUpdateReceiptRepository;
 import by.korchagin.planner.voice.service.SpeechTranscriber;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -49,8 +52,16 @@ public class TelegramUpdateService {
 	private final ReminderSnoozeService reminderSnoozeService;
 	private final TelegramClient telegramClient;
 	private final SpeechTranscriber speechTranscriber;
+	private final TelegramUpdateReceiptRepository telegramUpdateReceiptRepository;
+	private final Clock clock;
 
+	@Transactional(transactionManager = "transactionManager")
 	public void handle(TelegramUpdate update) {
+		if (telegramUpdateReceiptRepository.claim(update.updateId(), clock.instant()) == 0) {
+			log.debug("Ignoring duplicate Telegram update: {}", update.updateId());
+			return;
+		}
+
 		if (update.message() != null) {
 			handleMessage(update.message());
 			return;

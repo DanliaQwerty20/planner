@@ -1,6 +1,7 @@
 package by.korchagin.planner.telegram.service;
 
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -75,5 +76,19 @@ class TelegramPollingReceiverTest {
 
 		verify(telegramUpdateClient, times(1)).deleteWebhook(false);
 		verify(telegramUpdateClient).getUpdates(41L, POLLING_TIMEOUT);
+	}
+
+	@Test
+	void receiveUpdates_whenHandlingFails_shouldRetrySameOffset() {
+		var update = new TelegramUpdate(40L, null, null);
+		when(telegramUpdateClient.getUpdates(null, POLLING_TIMEOUT)).thenReturn(List.of(update));
+		doThrow(new IllegalStateException("Temporary failure"))
+				.when(telegramUpdateService).handle(update);
+
+		telegramPollingReceiver.receiveUpdates();
+		telegramPollingReceiver.receiveUpdates();
+
+		verify(telegramUpdateClient, times(2)).getUpdates(null, POLLING_TIMEOUT);
+		verify(telegramUpdateService, times(2)).handle(update);
 	}
 }

@@ -20,6 +20,7 @@ import by.korchagin.planner.reminder.service.ReminderDeliveryService;
 import by.korchagin.planner.reminder.service.ReminderService;
 import by.korchagin.planner.telegram.client.TelegramClient;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
+import by.korchagin.planner.telegram.repository.TelegramUpdateReceiptRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +53,9 @@ class TelegramReminderCancellationIntegrationTest {
 	@Autowired
 	private ReminderRepository reminderRepository;
 
+	@Autowired
+	private TelegramUpdateReceiptRepository telegramUpdateReceiptRepository;
+
 	@MockitoBean
 	private Clock clock;
 
@@ -62,6 +66,7 @@ class TelegramReminderCancellationIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
+		telegramUpdateReceiptRepository.deleteAll();
 		reminderDeliveryRepository.deleteAll();
 		reminderRepository.deleteAll();
 		currentTime.set(INITIAL_TIME);
@@ -78,14 +83,13 @@ class TelegramReminderCancellationIntegrationTest {
 		reminderDeliveryService.enqueueDueReminders();
 		reminderDeliverySenderService.sendNextPendingDelivery();
 		var firstDelivery = reminderDeliveryRepository.findAll().getFirst();
-		telegramUpdateService.handle(reminderCallback("snooze", firstDelivery.getId()));
+		telegramUpdateService.handle(reminderCallback(101L, "snooze", firstDelivery.getId()));
 		var snoozedUntil = currentTime.get().plusSeconds(3600);
 		currentTime.set(snoozedUntil);
 		assertThat(reminderDeliveryService.enqueueDueReminders()).isOne();
 
-		var cancellation = reminderCallback("cancel", reminder.getId());
-		telegramUpdateService.handle(cancellation);
-		telegramUpdateService.handle(cancellation);
+		telegramUpdateService.handle(reminderCallback(102L, "cancel", reminder.getId()));
+		telegramUpdateService.handle(reminderCallback(103L, "cancel", reminder.getId()));
 
 		var cancelledReminder = reminderRepository.findById(reminder.getId()).orElseThrow();
 		assertThat(cancelledReminder.getStatus()).isEqualTo(ReminderStatus.CANCELLED);
@@ -101,7 +105,7 @@ class TelegramReminderCancellationIntegrationTest {
 				.containsExactlyInAnyOrder(ReminderDeliveryStatus.SENT, ReminderDeliveryStatus.CANCELLED);
 	}
 
-	private TelegramUpdate reminderCallback(String action, UUID targetId) {
+	private TelegramUpdate reminderCallback(long updateId, String action, UUID targetId) {
 		var user = new TelegramUpdate.TelegramUser(TELEGRAM_USER_ID);
 		var message = new TelegramUpdate.TelegramMessage(
 				10L,
@@ -114,6 +118,6 @@ class TelegramReminderCancellationIntegrationTest {
 				user,
 				message,
 				"reminder:" + action + ":" + targetId);
-		return new TelegramUpdate(102L, null, callbackQuery);
+		return new TelegramUpdate(updateId, null, callbackQuery);
 	}
 }

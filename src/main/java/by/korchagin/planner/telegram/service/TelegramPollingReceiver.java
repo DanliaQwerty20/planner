@@ -25,16 +25,17 @@ public class TelegramPollingReceiver {
 	private boolean webhookDeleted;
 
 	@Scheduled(
-			fixedDelayString = "${planner.telegram.polling-delay:500ms}",
-			scheduler = "telegramPollingTaskScheduler")
+		fixedDelayString = "${planner.telegram.polling-delay:500ms}",
+		scheduler = "telegramPollingTaskScheduler")
 	public void receiveUpdates() {
 		try {
 			ensureWebhookDeleted();
 			telegramUpdateClient.getUpdates(nextOffset, telegramProperties.pollingTimeout())
-					.forEach(this::handleUpdate);
-		}
-		catch (TelegramApiException exception) {
+				.forEach(this::handleUpdate);
+		} catch (TelegramApiException exception) {
 			log.warn("Telegram long polling request failed; it will be retried", exception);
+		} catch (RuntimeException exception) {
+			log.error("Telegram update processing failed; it will be retried", exception);
 		}
 	}
 
@@ -49,14 +50,7 @@ public class TelegramPollingReceiver {
 	}
 
 	private void handleUpdate(TelegramUpdate update) {
-		try {
-			telegramUpdateService.handle(update);
-		}
-		catch (RuntimeException exception) {
-			log.error("Telegram update {} could not be handled", update.updateId(), exception);
-		}
-		finally {
-			nextOffset = update.updateId() + 1;
-		}
+		telegramUpdateService.handle(update);
+		nextOffset = update.updateId() + 1;
 	}
 }
