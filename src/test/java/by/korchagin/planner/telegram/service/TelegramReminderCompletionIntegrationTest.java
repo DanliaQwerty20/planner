@@ -15,6 +15,7 @@ import by.korchagin.planner.reminder.repository.ReminderRepository;
 import by.korchagin.planner.reminder.service.ReminderService;
 import by.korchagin.planner.telegram.client.TelegramClient;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
+import by.korchagin.planner.telegram.repository.TelegramUpdateReceiptRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,9 @@ class TelegramReminderCompletionIntegrationTest {
 	@Autowired
 	private ReminderRepository reminderRepository;
 
+	@Autowired
+	private TelegramUpdateReceiptRepository telegramUpdateReceiptRepository;
+
 	@MockitoBean
 	private Clock clock;
 
@@ -49,6 +53,7 @@ class TelegramReminderCompletionIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
+		telegramUpdateReceiptRepository.deleteAll();
 		reminderDeliveryRepository.deleteAll();
 		reminderRepository.deleteAll();
 		when(clock.instant()).thenReturn(NOW);
@@ -60,10 +65,8 @@ class TelegramReminderCompletionIntegrationTest {
 				TELEGRAM_USER_ID,
 				"Покормить кота",
 				NOW.plusSeconds(60));
-		var update = completionCallback(reminder.getId().toString());
-
-		telegramUpdateService.handle(update);
-		telegramUpdateService.handle(update);
+		telegramUpdateService.handle(completionCallback(100L, reminder.getId().toString()));
+		telegramUpdateService.handle(completionCallback(101L, reminder.getId().toString()));
 
 		var completedReminder = reminderRepository.findById(reminder.getId()).orElseThrow();
 		assertThat(completedReminder.getStatus()).isEqualTo(ReminderStatus.COMPLETED);
@@ -74,7 +77,7 @@ class TelegramReminderCompletionIntegrationTest {
 		verify(telegramClient, times(2)).answerCallbackQuery("callback-1");
 	}
 
-	private TelegramUpdate completionCallback(String reminderId) {
+	private TelegramUpdate completionCallback(long updateId, String reminderId) {
 		var user = new TelegramUpdate.TelegramUser(TELEGRAM_USER_ID);
 		var message = new TelegramUpdate.TelegramMessage(
 				10L,
@@ -87,6 +90,6 @@ class TelegramReminderCompletionIntegrationTest {
 				user,
 				message,
 				"reminder:complete:" + reminderId);
-		return new TelegramUpdate(100L, null, callbackQuery);
+		return new TelegramUpdate(updateId, null, callbackQuery);
 	}
 }

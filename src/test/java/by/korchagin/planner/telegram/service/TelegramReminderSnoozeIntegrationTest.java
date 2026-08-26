@@ -22,6 +22,7 @@ import by.korchagin.planner.reminder.service.ReminderDeliveryService;
 import by.korchagin.planner.reminder.service.ReminderService;
 import by.korchagin.planner.telegram.client.TelegramClient;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
+import by.korchagin.planner.telegram.repository.TelegramUpdateReceiptRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +55,9 @@ class TelegramReminderSnoozeIntegrationTest {
 	@Autowired
 	private ReminderRepository reminderRepository;
 
+	@Autowired
+	private TelegramUpdateReceiptRepository telegramUpdateReceiptRepository;
+
 	@MockitoBean
 	private Clock clock;
 
@@ -64,6 +68,7 @@ class TelegramReminderSnoozeIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
+		telegramUpdateReceiptRepository.deleteAll();
 		reminderDeliveryRepository.deleteAll();
 		reminderRepository.deleteAll();
 		currentTime.set(INITIAL_TIME);
@@ -73,10 +78,8 @@ class TelegramReminderSnoozeIntegrationTest {
 	@Test
 	void handle_whenSnoozeCallbackIsRepeated_shouldRescheduleAndDeliverReminderOnceMore() {
 		var sentReminder = createSentReminder();
-		var callback = snoozeCallback(sentReminder.deliveryId(), TELEGRAM_USER_ID);
-
-		telegramUpdateService.handle(callback);
-		telegramUpdateService.handle(callback);
+		telegramUpdateService.handle(snoozeCallback(101L, sentReminder.deliveryId(), TELEGRAM_USER_ID));
+		telegramUpdateService.handle(snoozeCallback(102L, sentReminder.deliveryId(), TELEGRAM_USER_ID));
 
 		var snoozedUntil = currentTime.get().plusSeconds(3600);
 		var snoozedReminder = reminderRepository.findById(sentReminder.reminderId()).orElseThrow();
@@ -101,7 +104,7 @@ class TelegramReminderSnoozeIntegrationTest {
 	@Test
 	void handle_whenSnoozeCallbackBelongsToAnotherUser_shouldRejectIt() {
 		var sentReminder = createSentReminder();
-		var callback = snoozeCallback(sentReminder.deliveryId(), 99L);
+		var callback = snoozeCallback(103L, sentReminder.deliveryId(), 99L);
 
 		assertThatThrownBy(() -> telegramUpdateService.handle(callback))
 				.isInstanceOf(ReminderDeliveryNotFoundException.class);
@@ -125,7 +128,7 @@ class TelegramReminderSnoozeIntegrationTest {
 		return new SentReminder(reminder.getId(), delivery.getId(), originalRemindAt);
 	}
 
-	private TelegramUpdate snoozeCallback(UUID deliveryId, long telegramUserId) {
+	private TelegramUpdate snoozeCallback(long updateId, UUID deliveryId, long telegramUserId) {
 		var user = new TelegramUpdate.TelegramUser(telegramUserId);
 		var message = new TelegramUpdate.TelegramMessage(
 				10L,
@@ -138,7 +141,7 @@ class TelegramReminderSnoozeIntegrationTest {
 				user,
 				message,
 				"reminder:snooze:" + deliveryId);
-		return new TelegramUpdate(101L, null, callbackQuery);
+		return new TelegramUpdate(updateId, null, callbackQuery);
 	}
 
 	private record SentReminder(UUID reminderId, UUID deliveryId, Instant originalRemindAt) {

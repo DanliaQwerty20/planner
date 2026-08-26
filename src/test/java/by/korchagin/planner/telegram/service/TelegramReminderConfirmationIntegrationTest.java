@@ -21,6 +21,8 @@ import by.korchagin.planner.reminder.repository.ReminderRepository;
 import by.korchagin.planner.reminder.service.ReminderTextInterpreter;
 import by.korchagin.planner.telegram.client.TelegramClient;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
+import by.korchagin.planner.telegram.repository.TelegramUpdateReceiptRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -50,6 +52,9 @@ class TelegramReminderConfirmationIntegrationTest {
 	@Autowired
 	private ReminderRepository reminderRepository;
 
+	@Autowired
+	private TelegramUpdateReceiptRepository telegramUpdateReceiptRepository;
+
 	@MockitoBean
 	private Clock clock;
 
@@ -58,6 +63,13 @@ class TelegramReminderConfirmationIntegrationTest {
 
 	@MockitoBean
 	private TelegramClient telegramClient;
+
+	@BeforeEach
+	void setUp() {
+		telegramUpdateReceiptRepository.deleteAll();
+		reminderDraftRepository.deleteAll();
+		reminderRepository.deleteAll();
+	}
 
 	@Test
 	void handle_whenDraftIsConfirmedRepeatedly_shouldScheduleOneReminder() throws IOException {
@@ -78,7 +90,10 @@ class TelegramReminderConfirmationIntegrationTest {
 
 		var callbackUpdate = readCallbackUpdate(draft.getId().toString());
 		telegramUpdateService.handle(callbackUpdate);
-		telegramUpdateService.handle(callbackUpdate);
+		telegramUpdateService.handle(new TelegramUpdate(
+				callbackUpdate.updateId() + 1,
+				callbackUpdate.message(),
+				callbackUpdate.callbackQuery()));
 
 		var reminders = reminderRepository.findAll();
 		assertThat(reminders).hasSize(1);
