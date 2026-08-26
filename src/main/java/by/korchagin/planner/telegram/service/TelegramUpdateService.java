@@ -9,12 +9,15 @@ import java.util.UUID;
 import by.korchagin.planner.reminder.dto.ReminderConfirmation;
 import by.korchagin.planner.reminder.dto.ReminderClarification;
 import by.korchagin.planner.reminder.dto.ReminderInterpretation;
+import by.korchagin.planner.reminder.entity.Reminder;
+import by.korchagin.planner.reminder.exception.ReminderDraftNotFoundException;
 import by.korchagin.planner.reminder.service.ReminderCancellationService;
+import by.korchagin.planner.reminder.service.ReminderConversationService;
 import by.korchagin.planner.reminder.service.ReminderDraftService;
 import by.korchagin.planner.reminder.service.ReminderService;
 import by.korchagin.planner.reminder.service.ReminderSnoozeService;
-import by.korchagin.planner.reminder.service.ReminderTextInterpreter;
 import by.korchagin.planner.telegram.client.TelegramClient;
+import by.korchagin.planner.telegram.dto.TelegramDraftActions;
 import by.korchagin.planner.telegram.dto.TelegramReminderAction;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
 import by.korchagin.planner.telegram.repository.TelegramUpdateReceiptRepository;
@@ -31,21 +34,31 @@ public class TelegramUpdateService {
 
 	private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm");
 	private static final String CONFIRM_CALLBACK_PREFIX = "reminder:confirm:";
+	private static final String EDIT_DRAFT_CALLBACK_PREFIX = "reminder:draft:edit:";
+	private static final String CANCEL_DRAFT_CALLBACK_PREFIX = "reminder:draft:cancel:";
 	private static final Duration SNOOZE_DELAY = Duration.ofHours(1);
 	private static final String START_COMMAND = "/start";
 	private static final String HELP_COMMAND = "/help";
+	private static final String CANCEL_COMMAND = "/cancel";
 	private static final String START_MESSAGE = "Привет! Я помогу не забыть важное.\n"
-			+ "Отправь напоминание текстом, например: «завтра в 15:00 покормить кота».";
-	private static final String HELP_MESSAGE = "Напиши одним сообщением, что и когда напомнить.\n"
-			+ "Например: «в пятницу в 18:30 купить корм коту».\n"
-			+ "Перед созданием я покажу дату и текст для подтверждения.";
+			+ "Напиши, что и когда напомнить. Например: «завтра в 15:00 покормить кота».\n"
+			+ "Если чего-то не хватит, я уточню.";
+	private static final String HELP_MESSAGE = "Можно написать свободно:\n"
+			+ "• «в пятницу в 18:30 купить корм коту»\n"
+			+ "• «через 10 минут выключить духовку»\n"
+			+ "Если даты или времени не хватает, я уточню. /cancel сбрасывает текущий диалог.";
 	private static final String VOICE_DISABLED_MESSAGE =
 			"Голосовые сообщения пока не поддерживаются. Отправь напоминание текстом.";
+	private static final String CANCEL_MESSAGE = "Хорошо, текущее напоминание сброшено.";
+	private static final String UNKNOWN_COMMAND_MESSAGE =
+			"Не знаю такую команду. Используй /help или просто напиши, что и когда напомнить.";
+	private static final String TOO_LONG_MESSAGE =
+			"Сообщение слишком длинное. Сформулируй напоминание короче 500 символов.";
 	private static final String UNSUPPORTED_MESSAGE =
 			"Пока я принимаю только текстовые напоминания. "
 					+ "Напиши, например: «завтра в 15:00 покормить кота».";
 
-	private final ReminderTextInterpreter reminderTextInterpreter;
+	private final ReminderConversationService reminderConversationService;
 	private final ReminderDraftService reminderDraftService;
 	private final ReminderService reminderService;
 	private final ReminderCancellationService reminderCancellationService;
@@ -68,6 +81,14 @@ public class TelegramUpdateService {
 		}
 		if (isConfirmationCallback(update.callbackQuery())) {
 			handleConfirmation(update.callbackQuery());
+			return;
+		}
+		if (isDraftCallback(update.callbackQuery(), EDIT_DRAFT_CALLBACK_PREFIX)) {
+			handleDraftEditing(update.callbackQuery());
+			return;
+		}
+		if (isDraftCallback(update.callbackQuery(), CANCEL_DRAFT_CALLBACK_PREFIX)) {
+			handleDraftCancellation(update.callbackQuery());
 			return;
 		}
 		var reminderAction = reminderAction(update.callbackQuery());
@@ -102,6 +123,14 @@ public class TelegramUpdateService {
 				&& callbackQuery.data().startsWith(CONFIRM_CALLBACK_PREFIX);
 	}
 
+	private boolean isDraftCallback(
+			TelegramUpdate.TelegramCallbackQuery callbackQuery,
+			String prefix) {
+		return callbackQuery != null
+				&& callbackQuery.data() != null
+				&& callbackQuery.data().startsWith(prefix);
+	}
+
 	private Optional<TelegramReminderAction> reminderAction(
 			TelegramUpdate.TelegramCallbackQuery callbackQuery) {
 		if (callbackQuery == null) {
@@ -112,11 +141,25 @@ public class TelegramUpdateService {
 
 	private void handleTextMessage(TelegramUpdate.TelegramMessage message) {
 		if (isCommand(message.text(), START_COMMAND)) {
+			reminderConversationService.reset(message.from().id(), message.chat().id());
 			telegramClient.sendMessage(message.chat().id(), START_MESSAGE);
 			return;
 		}
 		if (isCommand(message.text(), HELP_COMMAND)) {
 			telegramClient.sendMessage(message.chat().id(), HELP_MESSAGE);
+			return;
+		}
+		if (isCommand(message.text(), CANCEL_COMMAND)) {
+			reminderConversationService.reset(message.from().id(), message.chat().id());
+			telegramClient.sendMessage(message.chat().id(), CANCEL_MESSAGE);
+			return;
+		}
+		if (message.text().strip().startsWith("/")) {
+			telegramClient.sendMessage(message.chat().id(), UNKNOWN_COMMAND_MESSAGE);
+			return;
+		}
+		if (message.text().length() > Reminder.MAX_TEXT_LENGTH) {
+			telegramClient.sendMessage(message.chat().id(), TOO_LONG_MESSAGE);
 			return;
 		}
 
@@ -148,7 +191,7 @@ public class TelegramUpdateService {
 	}
 
 	private void createDraftPreview(long telegramUserId, long chatId, String text) {
-		var result = reminderTextInterpreter.interpret(text);
+		var result = reminderConversationService.interpret(telegramUserId, chatId, text);
 		if (result instanceof ReminderClarification clarification) {
 			telegramClient.sendMessage(chatId, clarification.question());
 			return;
@@ -159,16 +202,53 @@ public class TelegramUpdateService {
 		telegramClient.sendConfirmation(
 				chatId,
 				formatPreview(interpretation),
-				CONFIRM_CALLBACK_PREFIX + draft.getId());
+				new TelegramDraftActions(
+						CONFIRM_CALLBACK_PREFIX + draft.getId(),
+						EDIT_DRAFT_CALLBACK_PREFIX + draft.getId(),
+						CANCEL_DRAFT_CALLBACK_PREFIX + draft.getId()));
 	}
 
 	private void handleConfirmation(TelegramUpdate.TelegramCallbackQuery callbackQuery) {
 		var draftId = UUID.fromString(callbackQuery.data().substring(CONFIRM_CALLBACK_PREFIX.length()));
-		var confirmation = reminderDraftService.confirm(draftId, callbackQuery.from().id());
+		try {
+			var confirmation = reminderDraftService.confirm(draftId, callbackQuery.from().id());
+			if (confirmation.created()) {
+				telegramClient.sendMessage(
+						callbackQuery.message().chat().id(),
+						formatConfirmation(confirmation));
+			}
+		}
+		catch (ReminderDraftNotFoundException exception) {
+			telegramClient.sendMessage(
+					callbackQuery.message().chat().id(),
+					"Этот вариант уже неактуален. Отправь новое напоминание.");
+		}
+		telegramClient.answerCallbackQuery(callbackQuery.id());
+	}
+
+	private void handleDraftEditing(TelegramUpdate.TelegramCallbackQuery callbackQuery) {
+		discardDraft(callbackQuery, EDIT_DRAFT_CALLBACK_PREFIX);
+		reminderConversationService.reset(callbackQuery.from().id(), callbackQuery.message().chat().id());
 		telegramClient.sendMessage(
 				callbackQuery.message().chat().id(),
-				formatConfirmation(confirmation));
+				"Отправь исправленное напоминание целиком — старый вариант я удалил.");
 		telegramClient.answerCallbackQuery(callbackQuery.id());
+	}
+
+	private void handleDraftCancellation(TelegramUpdate.TelegramCallbackQuery callbackQuery) {
+		discardDraft(callbackQuery, CANCEL_DRAFT_CALLBACK_PREFIX);
+		telegramClient.sendMessage(callbackQuery.message().chat().id(), "Черновик напоминания отменён.");
+		telegramClient.answerCallbackQuery(callbackQuery.id());
+	}
+
+	private void discardDraft(TelegramUpdate.TelegramCallbackQuery callbackQuery, String prefix) {
+		var draftId = UUID.fromString(callbackQuery.data().substring(prefix.length()));
+		try {
+			reminderDraftService.discard(draftId, callbackQuery.from().id());
+		}
+		catch (ReminderDraftNotFoundException exception) {
+			log.debug("Reminder draft is already inactive: {}", draftId);
+		}
 	}
 
 	private void handleReminderAction(

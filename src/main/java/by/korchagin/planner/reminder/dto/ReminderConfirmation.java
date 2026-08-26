@@ -8,5 +8,6 @@ public record ReminderConfirmation(
 		UUID reminderId,
 		String text,
 		Instant remindAt,
-		ZoneId timeZone) {
+		ZoneId timeZone,
+		boolean created) {
 }

@@ -34,6 +34,7 @@ public class ReminderDraftService {
 		var draft = reminderDraftRepository.findByIdAndTelegramUserId(draftId, telegramUserId)
 				.orElseThrow(() -> new ReminderDraftNotFoundException("Reminder draft not found: " + draftId));
 
+		var created = !draft.isConfirmed();
 		if (!draft.isConfirmed()) {
 			var reminder = reminderService.create(
 					telegramUserId,
@@ -46,6 +47,13 @@ public class ReminderDraftService {
 				draft.getReminderId(),
 				draft.getText(),
 				draft.getRemindAt(),
-				draft.getTimeZone());
+				draft.getTimeZone(),
+				created);
+	}
+
+	public void discard(UUID draftId, long telegramUserId) {
+		var draft = reminderDraftRepository.findByIdAndTelegramUserId(draftId, telegramUserId)
+				.orElseThrow(() -> new ReminderDraftNotFoundException("Reminder draft not found: " + draftId));
+		reminderDraftRepository.delete(draft);
 	}
 }

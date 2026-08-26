@@ -4,6 +4,7 @@ import by.korchagin.planner.telegram.client.TelegramBotApiClient;
 import by.korchagin.planner.telegram.client.TelegramBotApiUpdateClient;
 import by.korchagin.planner.telegram.client.TelegramClient;
 import by.korchagin.planner.telegram.client.TelegramUpdateClient;
+import by.korchagin.planner.telegram.dto.TelegramDraftActions;
 import by.korchagin.planner.telegram.dto.TelegramReminderActions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -57,7 +58,7 @@ public class TelegramConfiguration {
 			}
 
 			@Override
-			public void sendConfirmation(long chatId, String text, String confirmationData) {
+			public void sendConfirmation(long chatId, String text, TelegramDraftActions actions) {
 				throw new IllegalStateException("Telegram client is not configured");
 			}
 
