@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import by.korchagin.planner.TestcontainersConfiguration;
 import by.korchagin.planner.telegram.config.TelegramProperties;
 import by.korchagin.planner.telegram.config.TelegramUpdateMode;
+import by.korchagin.planner.telegram.dto.TelegramDraftActions;
 import by.korchagin.planner.telegram.dto.TelegramReminderActions;
 import by.korchagin.planner.telegram.exception.TelegramApiException;
 import com.sun.net.httpserver.HttpExchange;
@@ -94,6 +95,26 @@ class TelegramBotApiClientIntegrationTest {
 				.contains("\"callback_data\":\"reminder:snooze:00000000-0000-0000-0000-000000000002\"")
 				.contains("\"text\":\"Отменить\"")
 				.contains("\"callback_data\":\"reminder:cancel:00000000-0000-0000-0000-000000000001\"");
+	}
+
+	@Test
+	void sendConfirmation_shouldOfferConfirmEditAndCancelActions() throws InterruptedException {
+		telegramClient.sendConfirmation(
+				1001L,
+				"Проверь напоминание",
+				new TelegramDraftActions(
+						"reminder:confirm:draft-id",
+						"reminder:draft:edit:draft-id",
+						"reminder:draft:cancel:draft-id"));
+
+		var request = nextRequest();
+		assertThat(request.body())
+				.contains("\"text\":\"Подтвердить\"")
+				.contains("\"callback_data\":\"reminder:confirm:draft-id\"")
+				.contains("\"text\":\"Исправить\"")
+				.contains("\"callback_data\":\"reminder:draft:edit:draft-id\"")
+				.contains("\"text\":\"Отменить\"")
+				.contains("\"callback_data\":\"reminder:draft:cancel:draft-id\"");
 	}
 
 	@Test

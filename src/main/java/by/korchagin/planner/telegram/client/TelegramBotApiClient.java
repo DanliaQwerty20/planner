@@ -11,6 +11,7 @@ import by.korchagin.planner.telegram.client.dto.TelegramSendMessageRequest;
 import by.korchagin.planner.telegram.client.dto.TelegramSendMessageRequest.InlineKeyboardButton;
 import by.korchagin.planner.telegram.client.dto.TelegramSendMessageRequest.InlineKeyboardMarkup;
 import by.korchagin.planner.telegram.config.TelegramProperties;
+import by.korchagin.planner.telegram.dto.TelegramDraftActions;
 import by.korchagin.planner.telegram.dto.TelegramReminderActions;
 import by.korchagin.planner.telegram.exception.TelegramApiException;
 import org.springframework.http.MediaType;
@@ -50,9 +51,12 @@ public class TelegramBotApiClient implements TelegramClient {
 	}
 
 	@Override
-	public void sendConfirmation(long chatId, String text, String confirmationData) {
-		var keyboard = new InlineKeyboardMarkup(List.of(List.of(
-				new InlineKeyboardButton("Подтвердить", confirmationData))));
+	public void sendConfirmation(long chatId, String text, TelegramDraftActions actions) {
+		var keyboard = new InlineKeyboardMarkup(List.of(
+				List.of(new InlineKeyboardButton("Подтвердить", actions.confirmationData())),
+				List.of(
+						new InlineKeyboardButton("Исправить", actions.editingData()),
+						new InlineKeyboardButton("Отменить", actions.cancellationData()))));
 		sendMessage(new TelegramSendMessageRequest(chatId, text, keyboard));
 	}
 

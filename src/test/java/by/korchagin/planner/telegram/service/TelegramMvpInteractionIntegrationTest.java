@@ -41,7 +41,8 @@ class TelegramMvpInteractionIntegrationTest {
 		verify(telegramClient).sendMessage(
 				CHAT_ID,
 				"Привет! Я помогу не забыть важное.\n"
-						+ "Отправь напоминание текстом, например: «завтра в 15:00 покормить кота».");
+						+ "Напиши, что и когда напомнить. Например: «завтра в 15:00 покормить кота».\n"
+						+ "Если чего-то не хватит, я уточню.");
 		verifyNoInteractions(reminderTextInterpreter);
 	}
 
@@ -51,9 +52,20 @@ class TelegramMvpInteractionIntegrationTest {
 
 		verify(telegramClient).sendMessage(
 				CHAT_ID,
-				"Напиши одним сообщением, что и когда напомнить.\n"
-						+ "Например: «в пятницу в 18:30 купить корм коту».\n"
-						+ "Перед созданием я покажу дату и текст для подтверждения.");
+				"Можно написать свободно:\n"
+						+ "• «в пятницу в 18:30 купить корм коту»\n"
+						+ "• «через 10 минут выключить духовку»\n"
+						+ "Если даты или времени не хватает, я уточню. /cancel сбрасывает текущий диалог.");
+		verifyNoInteractions(reminderTextInterpreter);
+	}
+
+	@Test
+	void handle_whenUnknownCommandReceived_shouldExplainAvailableInput() {
+		telegramUpdateService.handle(textUpdate("/unknown"));
+
+		verify(telegramClient).sendMessage(
+				CHAT_ID,
+				"Не знаю такую команду. Используй /help или просто напиши, что и когда напомнить.");
 		verifyNoInteractions(reminderTextInterpreter);
 	}
 

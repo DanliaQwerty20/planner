@@ -20,6 +20,7 @@ import by.korchagin.planner.reminder.repository.ReminderDraftRepository;
 import by.korchagin.planner.reminder.repository.ReminderRepository;
 import by.korchagin.planner.reminder.service.ReminderTextInterpreter;
 import by.korchagin.planner.telegram.client.TelegramClient;
+import by.korchagin.planner.telegram.dto.TelegramDraftActions;
 import by.korchagin.planner.telegram.dto.TelegramUpdate;
 import by.korchagin.planner.telegram.repository.TelegramUpdateReceiptRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,7 +87,10 @@ class TelegramReminderConfirmationIntegrationTest {
 		verify(telegramClient).sendConfirmation(
 				eq(TELEGRAM_USER_ID),
 				startsWith("Проверь напоминание:"),
-				eq("reminder:confirm:" + draft.getId()));
+				eq(new TelegramDraftActions(
+						"reminder:confirm:" + draft.getId(),
+						"reminder:draft:edit:" + draft.getId(),
+						"reminder:draft:cancel:" + draft.getId())));
 
 		var callbackUpdate = readCallbackUpdate(draft.getId().toString());
 		telegramUpdateService.handle(callbackUpdate);
@@ -104,10 +108,28 @@ class TelegramReminderConfirmationIntegrationTest {
 		assertThat(reminder.getStatus()).isEqualTo(ReminderStatus.SCHEDULED);
 		assertThat(reminderDraftRepository.findById(draft.getId()).orElseThrow().getReminderId())
 				.isEqualTo(reminder.getId());
-		verify(telegramClient, times(2)).sendMessage(
+		verify(telegramClient).sendMessage(
 				TELEGRAM_USER_ID,
 				"Напоминание создано: 14.08.2026, 15:00 — Покормить кота");
 		verify(telegramClient, times(2)).answerCallbackQuery("callback-1");
+	}
+
+	@Test
+	void handle_whenDraftIsCancelled_shouldDeleteItWithoutSchedulingReminder() throws IOException {
+		when(clock.instant()).thenReturn(NOW);
+		when(reminderTextInterpreter.interpret("Завтра в 15:00 покормить кота"))
+				.thenReturn(new ReminderInterpretation("Покормить кота", REMIND_AT, USER_TIME_ZONE));
+		telegramUpdateService.handle(readUpdate("telegram/text-reminder-update.json"));
+		var draft = reminderDraftRepository.findAll().getFirst();
+
+		telegramUpdateService.handle(draftCallback(
+				10003L,
+				"reminder:draft:cancel:" + draft.getId()));
+
+		assertThat(reminderDraftRepository.count()).isZero();
+		assertThat(reminderRepository.count()).isZero();
+		verify(telegramClient).sendMessage(TELEGRAM_USER_ID, "Черновик напоминания отменён.");
+		verify(telegramClient).answerCallbackQuery("callback-cancel");
 	}
 
 	private TelegramUpdate readUpdate(String path) throws IOException {
@@ -123,5 +145,21 @@ class TelegramReminderConfirmationIntegrationTest {
 					.replace("DRAFT_ID", draftId);
 			return jsonMapper.readValue(json, TelegramUpdate.class);
 		}
+	}
+
+	private TelegramUpdate draftCallback(long updateId, String data) {
+		var user = new TelegramUpdate.TelegramUser(TELEGRAM_USER_ID);
+		var message = new TelegramUpdate.TelegramMessage(
+				10L,
+				user,
+				new TelegramUpdate.TelegramChat(TELEGRAM_USER_ID),
+				null,
+				null);
+		var callback = new TelegramUpdate.TelegramCallbackQuery(
+				"callback-cancel",
+				user,
+				message,
+				data);
+		return new TelegramUpdate(updateId, null, callback);
 	}
 }

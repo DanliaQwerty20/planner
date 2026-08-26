@@ -62,4 +62,54 @@ class RussianReminderTextInterpreterTest {
 		assertThat(result).isEqualTo(new ReminderClarification(
 				"Это время уже прошло. На какое время поставить напоминание?"));
 	}
+
+	@Test
+	void interpret_whenTimeIsWrittenNaturally_shouldReturnReminderInterpretation() {
+		var result = interpreter.interpret("завтра в 9 утра позвонить маме");
+
+		assertThat(result).isEqualTo(new ReminderInterpretation(
+				"Позвонить маме",
+				Instant.parse("2026-08-14T06:00:00Z"),
+				TIME_ZONE));
+	}
+
+	@Test
+	void interpret_whenWeekdayIsPresent_shouldUseNextMatchingDay() {
+		var result = interpreter.interpret("в пятницу в 18:30 купить корм коту");
+
+		assertThat(result).isEqualTo(new ReminderInterpretation(
+				"Купить корм коту",
+				Instant.parse("2026-08-14T15:30:00Z"),
+				TIME_ZONE));
+	}
+
+	@Test
+	void interpret_whenRelativeDelayIsPresent_shouldUseCurrentTimeAsBase() {
+		var result = interpreter.interpret("напомни через 10 минут выключить духовку");
+
+		assertThat(result).isEqualTo(new ReminderInterpretation(
+				"Выключить духовку",
+				Instant.parse("2026-08-13T09:10:00Z"),
+				TIME_ZONE));
+	}
+
+	@Test
+	void interpret_whenClarificationMessagesAreCombined_shouldUseAllProvidedDetails() {
+		var result = interpreter.interpret("завтра встретиться с дядей\nпримерно в 14 00");
+
+		assertThat(result).isEqualTo(new ReminderInterpretation(
+				"Встретиться с дядей",
+				Instant.parse("2026-08-14T11:00:00Z"),
+				TIME_ZONE));
+	}
+
+	@Test
+	void interpret_whenOneMessageContainsSeveralTimes_shouldAskForOneReminderAtATime() {
+		var result = interpreter.interpret(
+				"завтра в 12:00 купить хлеб и в 18:00 позвонить врачу");
+
+		assertThat(result).isEqualTo(new ReminderClarification(
+				"Я вижу несколько времён. Отправь каждое напоминание отдельным сообщением.",
+				false));
+	}
 }
